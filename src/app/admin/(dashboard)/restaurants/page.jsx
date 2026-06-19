@@ -146,7 +146,9 @@ export default function MyRestoProfile() {
       }
       if (field === 'total') {
         newVal = Math.max(1, Number(value));
-        if (a.seatoAllocated > newVal) a.seatoAllocated = newVal; // cap seato
+        // Cap seatoAllocated without direct mutation
+        const cappedSeato = Math.min(a.seatoAllocated, newVal);
+        return { ...a, total: newVal, seatoAllocated: cappedSeato };
       }
       return { ...a, [field]: newVal };
     }));
@@ -356,12 +358,32 @@ export default function MyRestoProfile() {
                   {/* Grid Meja */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginBottom: '16px' }}>
                     {Array.from({ length: area.total }).map((_, i) => {
-                      let isSeato = i < area.seatoOccupied;
-                      let isWalkIn = !isSeato && i < areaOccupied;
+                      // Zone-based rendering: SEATO zone (0 to seatoAllocated-1), then Walk-in zone
+                      const isSeatoZone = i < area.seatoAllocated;
+                      let isSeato = false;
+                      let isWalkIn = false;
+                      let isOverflowWalkin = false;
+
+                      if (isSeatoZone) {
+                        // SEATO zone: first seatoOccupied slots are filled SEATO
+                        isSeato = i < area.seatoOccupied;
+                        // Check if walk-in overflowed into SEATO zone
+                        if (!isSeato) {
+                          const overflowCount = Math.max(0, area.walkInOccupied - areaWalkInQuota);
+                          if (overflowCount > 0) {
+                            const emptyInSeatoZone = area.seatoAllocated - area.seatoOccupied;
+                            const overflowInSeatoZone = Math.min(overflowCount, emptyInSeatoZone);
+                            isOverflowWalkin = (i - area.seatoOccupied) < overflowInSeatoZone;
+                            isWalkIn = isOverflowWalkin;
+                          }
+                        }
+                      } else {
+                        // Walk-in zone: fill from left of this zone
+                        const walkInZoneIndex = i - area.seatoAllocated;
+                        const normalWalkIn = Math.min(area.walkInOccupied, areaWalkInQuota);
+                        isWalkIn = walkInZoneIndex < normalWalkIn;
+                      }
                       let isEmpty = !isSeato && !isWalkIn;
-                      
-                      // For walkin, highlight those that overflowed into SEATO quota
-                      let isOverflowWalkin = isWalkIn && i >= areaWalkInQuota;
 
                       return (
                         <div key={i} style={{ 
