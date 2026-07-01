@@ -52,9 +52,19 @@ export default function MyRestoProfile() {
             // Extract table assignments directly from the DB response
             const dbAssignments = [];
             resto.areas.forEach(area => {
-              if (Array.isArray(area.tableAssignments)) {
-                dbAssignments.push(...area.tableAssignments);
+              let areaAssignments = [];
+              if (Array.isArray(area.tableAssignments) && area.tableAssignments.length > 0) {
+                areaAssignments = area.tableAssignments;
+              } else {
+                // Fallback for old data: generate sequentially if counts > 0
+                for (let i = 0; i < area.seatoOccupied; i++) {
+                  areaAssignments.push({ id: Math.random().toString(36).substr(2, 9), areaId: area.id, tableIndex: i, type: 'seato', assignedAt: Date.now(), notified: false });
+                }
+                for (let i = 0; i < area.walkInOccupied; i++) {
+                  areaAssignments.push({ id: Math.random().toString(36).substr(2, 9), areaId: area.id, tableIndex: area.seatoAllocated + i, type: 'walkin', assignedAt: Date.now(), notified: false });
+                }
               }
+              dbAssignments.push(...areaAssignments);
             });
             setTableAssignments(dbAssignments);
           }
