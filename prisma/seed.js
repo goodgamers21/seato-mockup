@@ -8,10 +8,42 @@ async function main() {
   await prisma.restaurantArea.deleteMany();
   await prisma.restaurant.deleteMany();
 
+  // 0. Delete Users
+  await prisma.user.deleteMany();
+
+  console.log('Seeding Users...');
+  
+  // Create Users
+  const user1 = await prisma.user.create({
+    data: {
+      name: 'Bagus Aji',
+      email: 'bagus@example.com',
+      password: 'password123',
+      initials: 'BA',
+      location: 'Jakarta',
+      statsReservasi: 12,
+      statsUlasan: 5,
+      statsFavorit: 8
+    }
+  });
+
+  const user2 = await prisma.user.create({
+    data: {
+      name: 'Sarah Rahman',
+      email: 'sarah@example.com',
+      password: 'password123',
+      initials: 'SR',
+      location: 'Bandung',
+      statsReservasi: 3,
+      statsUlasan: 1,
+      statsFavorit: 4
+    }
+  });
+
   console.log('Seeding restaurants...');
 
   // 2. Create Soto Kudus Menara
-  await prisma.restaurant.create({
+  const sotoMenara = await prisma.restaurant.create({
     data: {
       name: 'Soto Kudus Menara',
       address: 'Jl. Merdeka No. 12',
@@ -82,9 +114,54 @@ async function main() {
     }
   });
 
-  // Get restaurants for relation
-  const sotoMenara = await prisma.restaurant.findFirst({ where: { name: 'Soto Kudus Menara' }});
-  
+  // 5. Create Warung 24 Jam
+  await prisma.restaurant.create({
+    data: {
+      name: 'Warung 24 Jam Priok',
+      address: 'Jl. Enggano Raya',
+      city: 'Jakarta Utara',
+      type: 'Warung',
+      rating: 4.5,
+      reviewsCount: 300,
+      distance: '2.5 km',
+      status: 'PENDING',
+      imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80&w=800',
+      tags: JSON.stringify(['24 hours', 'late night', 'Smoking Indoor']),
+      loginEmail: 'admin@warung24priok.com',
+      loginPassword: 'password123',
+      areas: {
+        create: [
+          { name: 'Lantai 1', total: 20, seatoAllocated: 10, seatoOccupied: 0, walkInOccupied: 0 }
+        ]
+      }
+    }
+  });
+
+  // 6. Create Midnight Vibes Cafe
+  await prisma.restaurant.create({
+    data: {
+      name: 'Midnight Vibes Cafe',
+      address: 'Jl. Danau Sunter',
+      city: 'Jakarta Utara',
+      type: 'Cafe',
+      rating: 4.8,
+      reviewsCount: 210,
+      distance: '3.1 km',
+      status: 'SUBSCRIBED',
+      imageUrl: 'https://images.unsplash.com/photo-1572116469696-ed1f49fa5eb9?auto=format&fit=crop&q=80&w=800',
+      tags: JSON.stringify(['late night', 'Smoking Indoor']),
+      loginEmail: 'admin@midnightvibes.com',
+      loginPassword: 'password123',
+      areas: {
+        create: [
+          { name: 'Indoor Area', total: 15, seatoAllocated: 5, seatoOccupied: 0, walkInOccupied: 0 },
+          { name: 'Smoking Area', total: 10, seatoAllocated: 5, seatoOccupied: 0, walkInOccupied: 0 }
+        ]
+      }
+    }
+  });
+
+  // Get restaurants for relation (handled above)
   // 5. Create Global Promo
   await prisma.promo.create({
     data: {
