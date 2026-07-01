@@ -7,6 +7,17 @@ export async function GET() {
   try {
     const users = await prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: {
+            reservations: true,
+            badges: true
+          }
+        },
+        badges: {
+          include: { badge: true }
+        }
+      }
     });
     
     return NextResponse.json(users);

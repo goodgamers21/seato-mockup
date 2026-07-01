@@ -14,6 +14,8 @@ import HomeScreen from '../screens/HomeScreen';
 import ExploreScreen from '../screens/ExploreScreen';
 import ReservasiScreen from '../screens/ReservasiScreen';
 import AkunScreen from '../screens/AkunScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
 import RestaurantDetailScreen from '../screens/RestaurantDetailScreen';
 import PromoDetailScreen from '../screens/PromoDetailScreen';
 import PromoScreen from '../screens/PromoScreen';
@@ -31,6 +33,8 @@ export default function App() {
   const [viewingPromo, setViewingPromo] = useState(null);
   const [viewingCategory, setViewingCategory] = useState(null);
   const [viewingNearby, setViewingNearby] = useState(false);
+  const [viewingLeaderboard, setViewingLeaderboard] = useState(false);
+  const [viewingSettings, setViewingSettings] = useState(false);
   const [preSelectedPromoId, setPreSelectedPromoId] = useState('');
   
   const [newBookingInvoice, setNewBookingInvoice] = useState(null);
@@ -66,7 +70,6 @@ export default function App() {
         return;
       }
 
-      // Show toast message for successful booking
       toast.success('Booking berhasil, silahkan cek email Anda.', {
         duration: 4000,
         style: {
@@ -78,10 +81,9 @@ export default function App() {
       
       setSheetOpen(false);
       setPreSelectedPromoId('');
-      setViewingRestaurant(null); // Close detail screen if open
-      setViewingPromo(null); // Close promo detail if open
+      setViewingRestaurant(null); 
+      setViewingPromo(null); 
       
-      // Redirect to reservasi tab to show upcoming bookings
       setTimeout(() => {
         setActiveTab('reservasi');
       }, 1500);
@@ -96,14 +98,19 @@ export default function App() {
   };
 
   const renderActiveScreen = () => {
+    if (viewingLeaderboard) {
+       return <LeaderboardScreen currentUser={currentUser} onBack={() => setViewingLeaderboard(false)} />;
+    }
+
+    if (viewingSettings) {
+       return <AkunScreen currentUser={currentUser} onBack={() => setViewingSettings(false)} onLogout={() => { setIsLoggedIn(false); setCurrentUser(null); setActiveTab('home'); setViewingSettings(false); }} />;
+    }
+
     if (viewingRestaurant) {
       return (
         <RestaurantDetailScreen 
           restaurant={viewingRestaurant} 
-          onBack={() => {
-            setViewingRestaurant(null);
-            // If we came from promo detail, don't lose promo context
-          }} 
+          onBack={() => setViewingRestaurant(null)} 
           onBooking={openBooking}
         />
       );
@@ -158,7 +165,13 @@ export default function App() {
       case 'reservasi':
         return <ReservasiScreen currentUser={currentUser} navigateToExplore={() => setActiveTab('home')} />;
       case 'akun':
-        return <AkunScreen currentUser={currentUser} onLogout={() => { setIsLoggedIn(false); setCurrentUser(null); setActiveTab('home'); }} />;
+        return <ProfileScreen 
+                  currentUser={currentUser} 
+                  onNavigate={(dest) => {
+                     if (dest === 'leaderboard') setViewingLeaderboard(true);
+                     if (dest === 'settings') setViewingSettings(true);
+                  }}
+               />;
       default:
         return <HomeScreen currentUser={currentUser} />;
     }
@@ -175,7 +188,7 @@ export default function App() {
         ) : (
           <>
             {renderActiveScreen()}
-            {!viewingRestaurant && !viewingPromo && !viewingCategory && !viewingNearby && <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />}
+            {!viewingRestaurant && !viewingPromo && !viewingCategory && !viewingNearby && !viewingLeaderboard && !viewingSettings && <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />}
             
             <BottomSheet 
               isOpen={sheetOpen} 

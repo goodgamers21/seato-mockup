@@ -50,11 +50,48 @@ export async function POST(request) {
       }
     });
 
-    // Update User Stats
+    // Update User Stats (original logic)
     await prismaClient.user.update({
       where: { id: userId },
       data: { statsUlasan: user.statsUlasan + 1 }
     });
+
+    // XP Awarding Logic
+    // Using internal node-fetch or directly using prisma since we are on the server side
+    const xpAmount = 10;
+    const newXpPoints = user.xpPoints + xpAmount;
+    
+    // Quick level calculation
+    const LEVEL_THRESHOLDS = [
+      { level: 1, xp: 0 }, { level: 5, xp: 500 }, { level: 10, xp: 2000 },
+      { level: 15, xp: 5000 }, { level: 20, xp: 10000 }, { level: 25, xp: 20000 }
+    ];
+    let newLevel = 1;
+    for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+      if (newXpPoints >= LEVEL_THRESHOLDS[i].xp) {
+        newLevel = LEVEL_THRESHOLDS[i].level;
+        const nextThreshold = LEVEL_THRESHOLDS[i+1];
+        if (nextThreshold) {
+           const xpDiff = nextThreshold.xp - LEVEL_THRESHOLDS[i].xp;
+           const levelDiff = nextThreshold.level - LEVEL_THRESHOLDS[i].level;
+           const xpPerLevel = xpDiff / levelDiff;
+           const extraLevels = Math.floor((newXpPoints - LEVEL_THRESHOLDS[i].xp) / xpPerLevel);
+           newLevel += extraLevels;
+        }
+        break;
+      }
+    }
+    newLevel = newLevel > 25 ? 25 : newLevel;
+
+    await prismaClient.$transaction([
+      prismaClient.xPLog.create({
+        data: { userId, action: 'REVIEW', xpAmount, sourceId: newReview.id }
+      }),
+      prismaClient.user.update({
+        where: { id: userId },
+        data: { xpPoints: newXpPoints, level: newLevel }
+      })
+    ]);
 
     return NextResponse.json(newReview, { status: 201 });
   } catch (error) {

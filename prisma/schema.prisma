@@ -22,10 +22,62 @@ model User {
   statsFavorit   Int           @default(0)
   cancelCount    Int           @default(0)
   bannedUntil    DateTime?
+  level          Int           @default(1)
+  xpPoints       Int           @default(0)
+  cafesVisited   Int           @default(0)
+  bio            String?
+  avatarUrl      String?
+  specialization String?       // e.g., "Coffee Expert"
   reservations   Reservation[]
   reviews        Review[]
+  badges         UserBadge[]
+  xpLogs         XPLog[]
+  favorites      UserFavorite[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+}
+
+model Badge {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  description String
+  iconUrl     String?
+  category    String      // "LEVEL" | "SPECIALIST" | "ACHIEVEMENT"
+  requirement String      // JSON string describing how to earn
+  userBadges  UserBadge[]
+  createdAt   DateTime    @default(now())
+}
+
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+  
+  @@unique([userId, badgeId])
+}
+
+model XPLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String   // "CHECK_IN" | "REVIEW" | "ADD_PHOTO" | "HELPFUL_REVIEW" | "FIRST_VISIT" | "REPEAT_VISIT"
+  xpAmount  Int
+  sourceId  String?  // Reference to reservation/review id
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model UserFavorite {
+  id           String     @id @default(uuid())
+  userId       String
+  restaurantId String
+  user         User       @relation(fields: [userId], references: [id])
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  createdAt    DateTime   @default(now())
+  
+  @@unique([userId, restaurantId])
 }
 
 model Promo {
@@ -67,6 +119,7 @@ model Restaurant {
   streams       Stream[]
   promos        Promo[]
   areas         RestaurantArea[]
+  userFavorites UserFavorite[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }

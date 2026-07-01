@@ -6,7 +6,7 @@ export default function BottomNav({ activeTab, setActiveTab }) {
     { id: 'promo', icon: 'ti-ticket', label: 'Promo' },
     { id: 'community', icon: 'ti-users', label: 'Community' },
     { id: 'reservasi', icon: 'ti-calendar-event', label: 'Reservasi' },
-    { id: 'akun', icon: 'ti-user', label: 'Akun' }
+    { id: 'akun', icon: 'ti-user-circle', label: 'Profil' }
   ];
 
   return (

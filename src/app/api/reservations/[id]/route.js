@@ -119,9 +119,53 @@ export async function PATCH(request, { params }) {
     //    → Status change only. seatoOccupied remains the same (already +1 when Confirmed).
 
     // 6. Confirmed or Sedang Makan → Selesai (Admin marks as completed / Check Out)
-    //    → seatoOccupied -1
+    //    → seatoOccupied -1, and award Check-In XP to user
     if ((oldStatus === 'Confirmed' || oldStatus === 'Sedang Makan') && newStatus === 'Selesai') {
       await decrementSeatoOccupied();
+      
+      const user = await prismaClient.user.findUnique({ where: { id: reservation.userId } });
+      if (user) {
+         // Determine XP Amount (+15 if first visit, but for now let's use +5 check-in)
+         // Check if they have past finished reservations at this restaurant
+         const pastVisits = await prismaClient.reservation.count({
+            where: { userId: user.id, restaurantId: reservation.restaurantId, status: 'Selesai', id: { not: reservation.id } }
+         });
+         const isFirstVisit = pastVisits === 0;
+         const xpAmount = isFirstVisit ? 15 : 5;
+         const actionLabel = isFirstVisit ? 'FIRST_VISIT' : 'CHECK_IN';
+         
+         const newXpPoints = user.xpPoints + xpAmount;
+         
+         const LEVEL_THRESHOLDS = [
+            { level: 1, xp: 0 }, { level: 5, xp: 500 }, { level: 10, xp: 2000 },
+            { level: 15, xp: 5000 }, { level: 20, xp: 10000 }, { level: 25, xp: 20000 }
+         ];
+         let newLevel = 1;
+         for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+            if (newXpPoints >= LEVEL_THRESHOLDS[i].xp) {
+               newLevel = LEVEL_THRESHOLDS[i].level;
+               const nextThreshold = LEVEL_THRESHOLDS[i+1];
+               if (nextThreshold) {
+                  const xpDiff = nextThreshold.xp - LEVEL_THRESHOLDS[i].xp;
+                  const levelDiff = nextThreshold.level - LEVEL_THRESHOLDS[i].level;
+                  const xpPerLevel = xpDiff / levelDiff;
+                  newLevel += Math.floor((newXpPoints - LEVEL_THRESHOLDS[i].xp) / xpPerLevel);
+               }
+               break;
+            }
+         }
+         newLevel = newLevel > 25 ? 25 : newLevel;
+
+         await prismaClient.$transaction([
+            prismaClient.xPLog.create({
+               data: { userId: user.id, action: actionLabel, xpAmount, sourceId: reservation.id }
+            }),
+            prismaClient.user.update({
+               where: { id: user.id },
+               data: { xpPoints: newXpPoints, level: newLevel }
+            })
+         ]);
+      }
     }
 
     // Execute the update

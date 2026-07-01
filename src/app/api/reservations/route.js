@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+// Note: Need to verify what's inside /api/reservations/route.js before editing
 import { prisma as prismaClient } from '../../../lib/prisma';
 
 async function checkAutoTerminate(reservations) {

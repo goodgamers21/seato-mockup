@@ -2,14 +2,33 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  // 1. Delete all existing restaurants (and cascaded data if any)
+  // 1. Delete all existing data (respecting foreign keys)
+  await prisma.userFavorite.deleteMany();
+  await prisma.xPLog.deleteMany();
+  await prisma.userBadge.deleteMany();
+  await prisma.badge.deleteMany();
   await prisma.reservation.deleteMany();
   await prisma.promo.deleteMany();
   await prisma.restaurantArea.deleteMany();
+  await prisma.stream.deleteMany();
+  await prisma.review.deleteMany();
   await prisma.restaurant.deleteMany();
-
-  // 0. Delete Users
   await prisma.user.deleteMany();
+
+  console.log('Seeding Badges...');
+  
+  const badges = [
+    { name: 'Early Bird', description: 'Bergabung di 30 hari pertama', category: 'ACHIEVEMENT', requirement: '{"joinDays": 30}', iconUrl: 'https://cdn-icons-png.flaticon.com/512/2821/2821634.png' },
+    { name: 'Coffee Expert', description: 'Review 15+ Coffee Shops', category: 'SPECIALIST', requirement: '{"type": "Coffee Shop", "reviews": 15}', iconUrl: 'https://cdn-icons-png.flaticon.com/512/924/924514.png' },
+    { name: 'Hidden Gem Hunter', description: 'Kunjungi 10+ cafe belum populer', category: 'ACHIEVEMENT', requirement: '{"reviewsCount": "<50", "visits": 10}', iconUrl: 'https://cdn-icons-png.flaticon.com/512/272/272396.png' },
+    { name: 'WFC Specialist', description: 'Sering ke cafe WFC Friendly', category: 'SPECIALIST', requirement: '{"tag": "WFC Friendly", "visits": 20}', iconUrl: 'https://cdn-icons-png.flaticon.com/512/2784/2784461.png' },
+    { name: 'Night Owl', description: 'Sering ke cafe di atas jam 9 malam', category: 'SPECIALIST', requirement: '{"time": ">21:00", "visits": 15}', iconUrl: 'https://cdn-icons-png.flaticon.com/512/1253/1253365.png' },
+  ];
+  
+  const createdBadges = [];
+  for (const b of badges) {
+    createdBadges.push(await prisma.badge.create({ data: b }));
+  }
 
   console.log('Seeding Users...');
   
@@ -23,7 +42,12 @@ async function main() {
       location: 'Jakarta',
       statsReservasi: 12,
       statsUlasan: 5,
-      statsFavorit: 8
+      statsFavorit: 8,
+      level: 10,
+      xpPoints: 2450,
+      cafesVisited: 65,
+      bio: 'WFC Enthusiast. Always hunting for the best cold brew.',
+      specialization: 'WFC Specialist'
     }
   });
  
@@ -36,7 +60,11 @@ async function main() {
       location: 'Bandung',
       statsReservasi: 3,
       statsUlasan: 1,
-      statsFavorit: 4
+      statsFavorit: 4,
+      level: 5,
+      xpPoints: 850,
+      cafesVisited: 22,
+      bio: 'Pastry lover!',
     }
   });
 
@@ -49,7 +77,10 @@ async function main() {
       location: 'Bandung',
       statsReservasi: 5,
       statsUlasan: 2,
-      statsFavorit: 3
+      statsFavorit: 3,
+      level: 8,
+      xpPoints: 1200,
+      cafesVisited: 40,
     }
   });
 
@@ -62,7 +93,11 @@ async function main() {
       location: 'Jakarta',
       statsReservasi: 8,
       statsUlasan: 4,
-      statsFavorit: 6
+      statsFavorit: 6,
+      level: 12,
+      xpPoints: 3100,
+      cafesVisited: 85,
+      specialization: 'Night Owl'
     }
   });
 
@@ -75,8 +110,25 @@ async function main() {
       location: 'Jakarta',
       statsReservasi: 15,
       statsUlasan: 10,
-      statsFavorit: 12
+      statsFavorit: 12,
+      level: 18,
+      xpPoints: 6250,
+      cafesVisited: 237,
+      bio: 'Bandung Specialist & Top 5% Cafe Hoppers',
+      specialization: 'Bandung Specialist'
     }
+  });
+
+  // Assign Badges
+  await prisma.userBadge.createMany({
+    data: [
+      { userId: user1.id, badgeId: createdBadges[0].id }, // Early Bird
+      { userId: user1.id, badgeId: createdBadges[3].id }, // WFC Specialist
+      { userId: user5.id, badgeId: createdBadges[0].id },
+      { userId: user5.id, badgeId: createdBadges[1].id }, // Coffee Expert
+      { userId: user5.id, badgeId: createdBadges[2].id },
+      { userId: user4.id, badgeId: createdBadges[4].id }, // Night Owl
+    ]
   });
 
   console.log('Seeding bulk restaurants...');
@@ -188,6 +240,16 @@ async function main() {
     if (resto.name === 'Soto Kudus Menara') {
       sotoMenara = createdResto;
     }
+    
+    if (resto.name === 'Union Coffee Dago') {
+       // Seed User Favorites
+       await prisma.userFavorite.create({
+          data: { userId: user5.id, restaurantId: createdResto.id }
+       });
+       await prisma.userFavorite.create({
+          data: { userId: user1.id, restaurantId: createdResto.id }
+       });
+    }
   }
 
   // Get restaurants for relation (handled above)
@@ -216,6 +278,17 @@ async function main() {
       }
     });
   }
+
+  // Seed some XP logs
+  await prisma.xPLog.createMany({
+     data: [
+       { userId: user5.id, action: 'CHECK_IN', xpAmount: 5 },
+       { userId: user5.id, action: 'REVIEW', xpAmount: 10 },
+       { userId: user5.id, action: 'ADD_PHOTO', xpAmount: 5 },
+       { userId: user1.id, action: 'FIRST_VISIT', xpAmount: 15 },
+       { userId: user1.id, action: 'CHECK_IN', xpAmount: 5 }
+     ]
+  });
 
   console.log('Seeding completed successfully!');
 }
