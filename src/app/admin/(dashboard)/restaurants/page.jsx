@@ -102,10 +102,10 @@ export default function MyRestoProfile() {
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [notifSentTo, setNotifSentTo] = useState(null);
 
-  // --- WALK-IN INTERACTIVE STATE ---
-  const [explicitWalkIns, setExplicitWalkIns] = useState([]);
-  const [pendingWalkInTable, setPendingWalkInTable] = useState(null);
-  const [walkInReminder, setWalkInReminder] = useState(null); // { id, areaName, tableNumber }
+  // --- INTERACTIVE TABLE STATE ---
+  const [tableAssignments, setTableAssignments] = useState([]);
+  const [pendingAssignTable, setPendingAssignTable] = useState(null);
+  const [tableReminder, setTableReminder] = useState(null); // { id, areaName, tableNumber, type }
 
   // 10-second timer for testing (in real app, this would be 5 minutes = 300000ms)
   const TIMER_DURATION_MS = 10000; 
@@ -113,49 +113,52 @@ export default function MyRestoProfile() {
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
-      const expired = explicitWalkIns.find(w => !w.notified && (now - w.assignedAt) > TIMER_DURATION_MS);
+      const expired = tableAssignments.find(w => !w.notified && w.type === 'walkin' && (now - w.assignedAt) > TIMER_DURATION_MS);
       
       if (expired) {
-        setExplicitWalkIns(prev => prev.map(w => w.id === expired.id ? { ...w, notified: true } : w));
+        setTableAssignments(prev => prev.map(w => w.id === expired.id ? { ...w, notified: true } : w));
         const area = areas.find(a => a.id === expired.areaId);
-        setWalkInReminder({ id: expired.id, areaName: area?.name || '', tableNumber: expired.tableIndex + 1 });
+        setTableReminder({ id: expired.id, areaName: area?.name || '', tableNumber: expired.tableIndex + 1, type: expired.type });
       }
     }, 2000); // Check every 2 seconds
     return () => clearInterval(interval);
-  }, [explicitWalkIns, areas]);
+  }, [tableAssignments, areas]);
 
-  const confirmWalkIn = () => {
-    if (pendingWalkInTable) {
-      updateArea(pendingWalkInTable.areaId, 'walkin', 1);
-      setExplicitWalkIns(prev => [
+  const confirmAssign = () => {
+    if (pendingAssignTable) {
+      const { areaId, tableIndex, type } = pendingAssignTable;
+      updateArea(areaId, type, 1);
+      setTableAssignments(prev => [
         ...prev, 
         { 
           id: Math.random().toString(36).substr(2, 9),
-          areaId: pendingWalkInTable.areaId, 
-          tableIndex: pendingWalkInTable.tableIndex,
+          areaId, 
+          tableIndex,
+          type,
           assignedAt: Date.now(),
           notified: false
         }
       ]);
-      setPendingWalkInTable(null);
+      setPendingAssignTable(null);
     }
   };
 
-  const finishWalkIn = (walkInId) => {
-    const walkIn = explicitWalkIns.find(w => w.id === walkInId);
-    if (walkIn) {
-      updateArea(walkIn.areaId, 'walkin', -1);
-      setExplicitWalkIns(prev => prev.filter(w => w.id !== walkInId));
+  const finishTableAssignment = (assignmentId) => {
+    const assignment = tableAssignments.find(w => w.id === assignmentId);
+    if (assignment) {
+      updateArea(assignment.areaId, assignment.type, -1);
+      setTableAssignments(prev => prev.filter(w => w.id !== assignmentId));
     }
-    if (walkInReminder && walkInReminder.id === walkInId) {
-      setWalkInReminder(null);
+    if (tableReminder && tableReminder.id === assignmentId) {
+      setTableReminder(null);
     }
   };
 
-  const resetTimer = (walkInId) => {
-    setExplicitWalkIns(prev => prev.map(w => w.id === walkInId ? { ...w, notified: false, assignedAt: Date.now() } : w));
-    setWalkInReminder(null);
+  const resetTimer = (assignmentId) => {
+    setTableAssignments(prev => prev.map(w => w.id === assignmentId ? { ...w, notified: false, assignedAt: Date.now() } : w));
+    setTableReminder(null);
   };
+
 
   // --- COMPUTED GLOBALS ---
   const totalTables = areas.reduce((sum, a) => sum + a.total, 0);
@@ -427,9 +430,27 @@ export default function MyRestoProfile() {
 
         {/* Dynamic Multi-Area Denah Meja */}
         <div>
-          <h2 style={{ fontSize: '13px', fontWeight: 700, color: '#64748B', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Zonasi Area Meja
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '13px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+              Zonasi Area Meja
+            </h2>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <div 
+                draggable 
+                onDragStart={(e) => { e.dataTransfer.setData('type', 'walkin') }}
+                style={{ background: '#FEF3C7', color: '#B45309', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, border: '1px solid #FDE68A', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <IconArmchair size={16} /> Drag Tamu Walk-in
+              </div>
+              <div 
+                draggable 
+                onDragStart={(e) => { e.dataTransfer.setData('type', 'seato') }}
+                style={{ background: '#DBEAFE', color: '#1D4ED8', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, border: '1px solid #93C5FD', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <IconArmchair size={16} /> Drag Tamu SEATO
+              </div>
+            </div>
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {areas.map((area) => {
@@ -451,58 +472,65 @@ export default function MyRestoProfile() {
                   {/* Grid Meja */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '8px', marginBottom: '16px' }}>
                     {Array.from({ length: area.total }).map((_, i) => {
-                      // Check if it's explicitly assigned as a walk-in
-                      const explicitWalkIn = explicitWalkIns.find(w => w.areaId === area.id && w.tableIndex === i);
+                      // Check explicit assignments
+                      const assignment = tableAssignments.find(w => w.areaId === area.id && w.tableIndex === i);
                       
-                      // Zone-based rendering for SEATO only
-                      const isSeatoZone = i < area.seatoAllocated;
-                      let isSeato = false;
-                      let isWalkIn = !!explicitWalkIn; // Priority to explicit Walk-in
-                      let isOverflowWalkin = false;
-
-                      if (!isWalkIn) {
-                        if (isSeatoZone) {
-                          // SEATO zone: first seatoOccupied slots are filled SEATO
-                          isSeato = i < area.seatoOccupied;
-                        } else {
-                          // If we have legacy walkInOccupied that are NOT explicitly tracked, fill them sequentially
-                          // But to avoid double-counting, we'd subtract explicitWalkIns.length
-                          // For simplicity in this mockup, we only rely on explicit Walk-in array!
-                          // If they want sequential, we could do it here, but explicit is better.
-                          const legacyWalkIns = Math.max(0, area.walkInOccupied - explicitWalkIns.filter(w=>w.areaId === area.id).length);
-                          if (legacyWalkIns > 0) {
-                            const walkInZoneIndex = i - area.seatoAllocated;
-                            if (walkInZoneIndex >= 0 && walkInZoneIndex < legacyWalkIns) {
-                              isWalkIn = true;
-                            }
-                          }
-                        }
-                      }
-                      
+                      let isSeato = assignment?.type === 'seato';
+                      let isWalkIn = assignment?.type === 'walkin';
                       let isEmpty = !isSeato && !isWalkIn;
+                      
+                      // Identify SEATO zone styling hint
+                      const isSeatoZone = i < area.seatoAllocated;
 
                       return (
                         <div 
-                          key={i} 
-                          onClick={() => {
+                          key={i}
+                          onDragOver={(e) => {
                             if (isEmpty) {
-                              setPendingWalkInTable({ areaId: area.id, tableIndex: i, areaName: area.name });
-                            } else if (explicitWalkIn) {
-                              // If it's an explicit walk-in, clicking it will checkout
-                              if(confirm(`Selesaikan sesi Walk-in untuk Meja ${i+1}?`)) {
-                                finishWalkIn(explicitWalkIn.id);
+                              e.preventDefault(); // allow drop
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (isEmpty) {
+                              const type = e.dataTransfer.getData('type');
+                              if (type === 'seato' || type === 'walkin') {
+                                setPendingAssignTable({ areaId: area.id, tableIndex: i, areaName: area.name, type });
                               }
                             }
                           }}
                           style={{ 
+                          position: 'relative',
                           aspectRatio: '1', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center',
                           background: isSeato ? '#DBEAFE' : isWalkIn ? '#FEF3C7' : '#F1F5F9',
-                          border: `1px solid ${isSeato ? '#93C5FD' : isWalkIn ? '#FDE68A' : '#E2E8F0'}`,
+                          border: `1px solid ${isSeato ? '#93C5FD' : isWalkIn ? '#FDE68A' : isSeatoZone ? '#CBD5E1' : '#E2E8F0'}`,
+                          borderStyle: isEmpty && isSeatoZone ? 'dashed' : 'solid',
                           color: isSeato ? '#1D4ED8' : isWalkIn ? '#B45309' : '#94A3B8',
                           transition: 'all 0.2s ease',
-                          cursor: isEmpty || explicitWalkIn ? 'pointer' : 'default',
                           boxShadow: !isEmpty ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
                         }}>
+                          {/* Close X Button if Assigned */}
+                          {!isEmpty && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if(confirm(`Selesaikan sesi ${isSeato ? 'SEATO' : 'Walk-in'} untuk Meja ${i+1}?`)) {
+                                  finishTableAssignment(assignment.id);
+                                }
+                              }}
+                              style={{
+                                position: 'absolute', top: '4px', right: '4px',
+                                background: isSeato ? '#93C5FD' : '#FDE68A',
+                                color: isSeato ? '#1E3A8A' : '#92400E',
+                                border: 'none', borderRadius: '50%', width: '16px', height: '16px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer', padding: 0
+                              }}
+                            >
+                              <IconMinus size={12} />
+                            </button>
+                          )}
+
                           {isEmpty ? (
                             <span style={{ fontSize: '11px', fontWeight: 700 }}>{i+1}</span>
                           ) : (
@@ -513,25 +541,6 @@ export default function MyRestoProfile() {
                     })}
                   </div>
 
-                  {/* Area Action Buttons */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#F8FAFC', padding: '12px', borderRadius: '12px' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button 
-                        onClick={() => updateArea(area.id, 'seato', -1)}
-                        disabled={area.seatoOccupied === 0}
-                        style={{ flex: 1, border: '1px solid #BFDBFE', borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 600, background: 'white', color: '#1D4ED8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', opacity: area.seatoOccupied === 0 ? 0.4 : 1 }}
-                      >
-                        <IconMinus size={14} /> SEATO
-                      </button>
-                      <button 
-                        onClick={() => updateArea(area.id, 'seato', 1)}
-                        disabled={areaOccupied >= area.total || area.seatoOccupied >= area.seatoAllocated}
-                        style={{ flex: 1, border: 'none', borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 700, background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', opacity: (areaOccupied >= area.total || area.seatoOccupied >= area.seatoAllocated) ? 0.4 : 1 }}
-                      >
-                        <IconPlus size={14} /> SEATO
-                      </button>
-                    </div>
-                  </div>
                 </div>
               );
             })}
@@ -571,40 +580,40 @@ export default function MyRestoProfile() {
       </div>
       </div>
 
-      {/* Pending WalkIn Confirm Modal */}
-      {pendingWalkInTable && (
+      {/* Pending Assign Confirm Modal */}
+      {pendingAssignTable && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'white', padding: '24px', borderRadius: '16px', width: '90%', maxWidth: '360px', textAlign: 'center' }}>
-            <div style={{ width: '48px', height: '48px', background: '#FEF3C7', color: '#D97706', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <div style={{ width: '48px', height: '48px', background: pendingAssignTable.type === 'seato' ? '#DBEAFE' : '#FEF3C7', color: pendingAssignTable.type === 'seato' ? '#1D4ED8' : '#D97706', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <IconUsers size={24} />
             </div>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#0F172A' }}>Assign Walk-in</h3>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#0F172A' }}>Assign {pendingAssignTable.type === 'seato' ? 'SEATO' : 'Walk-in'}</h3>
             <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#64748B', lineHeight: '1.5' }}>
-              Masukkan tamu Walk-in ke <strong>Meja {pendingWalkInTable.tableIndex + 1}</strong> di <strong>{pendingWalkInTable.areaName}</strong>?
+              Masukkan tamu {pendingAssignTable.type === 'seato' ? 'SEATO' : 'Walk-in'} ke <strong>Meja {pendingAssignTable.tableIndex + 1}</strong> di <strong>{pendingAssignTable.areaName}</strong>?
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setPendingWalkInTable(null)} style={{ flex: 1, padding: '12px', background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '12px', fontWeight: 600, cursor: 'pointer' }}>Batal</button>
-              <button onClick={confirmWalkIn} style={{ flex: 1, padding: '12px', background: '#F59E0B', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 600, cursor: 'pointer' }}>Ya, Assign</button>
+              <button onClick={() => setPendingAssignTable(null)} style={{ flex: 1, padding: '12px', background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '12px', fontWeight: 600, cursor: 'pointer' }}>Batal</button>
+              <button onClick={confirmAssign} style={{ flex: 1, padding: '12px', background: pendingAssignTable.type === 'seato' ? '#3B82F6' : '#F59E0B', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 600, cursor: 'pointer' }}>Ya, Assign</button>
             </div>
           </div>
         </div>
       )}
 
       {/* Timer Reminder Notification */}
-      {walkInReminder && (
+      {tableReminder && (
         <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'white', border: '1px solid #E2E8F0', padding: '16px', borderRadius: '16px', width: '90%', maxWidth: '400px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)', zIndex: 200, display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: '40px', height: '40px', background: '#FEF2F2', color: '#EF4444', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <IconBell size={20} />
             </div>
             <div>
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>Pengingat Meja Walk-in!</div>
-              <div style={{ fontSize: '12px', color: '#64748B' }}>Tamu di <strong>{walkInReminder.areaName} - Meja {walkInReminder.tableNumber}</strong> sudah cukup lama. Apakah mereka masih di sana?</div>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>Pengingat Meja {tableReminder.type === 'seato' ? 'SEATO' : 'Walk-in'}!</div>
+              <div style={{ fontSize: '12px', color: '#64748B' }}>Tamu di <strong>{tableReminder.areaName} - Meja {tableReminder.tableNumber}</strong> sudah cukup lama. Apakah mereka masih di sana?</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={() => resetTimer(walkInReminder.id)} style={{ flex: 1, padding: '10px', background: '#F1F5F9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Masih (Reset)</button>
-            <button onClick={() => finishWalkIn(walkInReminder.id)} style={{ flex: 1, padding: '10px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Sudah Selesai</button>
+            <button onClick={() => resetTimer(tableReminder.id)} style={{ flex: 1, padding: '10px', background: '#F1F5F9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Masih (Reset)</button>
+            <button onClick={() => finishTableAssignment(tableReminder.id)} style={{ flex: 1, padding: '10px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Sudah Selesai</button>
           </div>
         </div>
       )}
