@@ -37,7 +37,8 @@ export async function PUT(request, { params }) {
             total: Number(a.total),
             seatoAllocated: Number(a.seatoAllocated),
             seatoOccupied: Number(a.seatoOccupied || 0),
-            walkInOccupied: Number(a.walkInOccupied || 0)
+            walkInOccupied: Number(a.walkInOccupied || 0),
+            tableAssignments: a.tableAssignments || []
           },
           create: {
             id: a.id, // Preserve the ID from frontend so it doesn't break React state
@@ -46,7 +47,8 @@ export async function PUT(request, { params }) {
             total: Number(a.total),
             seatoAllocated: Number(a.seatoAllocated),
             seatoOccupied: Number(a.seatoOccupied || 0),
-            walkInOccupied: Number(a.walkInOccupied || 0)
+            walkInOccupied: Number(a.walkInOccupied || 0),
+            tableAssignments: a.tableAssignments || []
           }
         });
       }
@@ -87,7 +89,7 @@ export async function PATCH(request, { params }) {
     const resolvedParams = await params;
     const restaurantId = resolvedParams.id;
     const body = await request.json();
-    const { areaId, field, delta } = body;
+    const { areaId, field, delta, assignments } = body;
 
     // Validate input
     if (!areaId || !field || typeof delta !== 'number') {
@@ -98,8 +100,8 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'field must be seatoOccupied or walkInOccupied' }, { status: 400 });
     }
 
-    if (delta !== 1 && delta !== -1) {
-      return NextResponse.json({ error: 'delta must be 1 or -1' }, { status: 400 });
+    if (delta !== 1 && delta !== -1 && delta !== 0) {
+      return NextResponse.json({ error: 'delta must be 1, -1, or 0' }, { status: 400 });
     }
 
     // Fetch current area to validate constraints
@@ -138,9 +140,14 @@ export async function PATCH(request, { params }) {
     }
 
     // Atomic update
+    const updateData = { [field]: area[field] + delta };
+    if (assignments !== undefined) {
+      updateData.tableAssignments = assignments;
+    }
+
     const updatedArea = await prismaClient.restaurantArea.update({
       where: { id: areaId },
-      data: { [field]: area[field] + delta }
+      data: updateData
     });
 
     // Return all areas so frontend can sync full state

@@ -49,33 +49,14 @@ export default function MyRestoProfile() {
           if (resto.areas && resto.areas.length > 0) {
             setAreas(resto.areas);
             
-            // Generate initial table assignments based on DB counters
-            // FIRST, check localStorage for existing layout
-            const cachedKey = `seato_tables_${partnerId}`;
-            let cachedAssignments = null;
-            try {
-              const cached = localStorage.getItem(cachedKey);
-              if (cached) {
-                cachedAssignments = JSON.parse(cached);
+            // Extract table assignments directly from the DB response
+            const dbAssignments = [];
+            resto.areas.forEach(area => {
+              if (Array.isArray(area.tableAssignments)) {
+                dbAssignments.push(...area.tableAssignments);
               }
-            } catch (e) {}
-
-            if (cachedAssignments && cachedAssignments.length > 0) {
-              setTableAssignments(cachedAssignments);
-            } else {
-              const initialAssignments = [];
-              resto.areas.forEach(area => {
-                // Fill SEATO from left to right in their zone
-                for (let i = 0; i < area.seatoOccupied; i++) {
-                  initialAssignments.push({ id: Math.random().toString(36).substr(2, 9), areaId: area.id, tableIndex: i, type: 'seato', assignedAt: Date.now(), notified: false });
-                }
-                // Fill Walk-in starting after SEATO zone
-                for (let i = 0; i < area.walkInOccupied; i++) {
-                  initialAssignments.push({ id: Math.random().toString(36).substr(2, 9), areaId: area.id, tableIndex: area.seatoAllocated + i, type: 'walkin', assignedAt: Date.now(), notified: false });
-                }
-              });
-              setTableAssignments(initialAssignments);
-            }
+            });
+            setTableAssignments(dbAssignments);
           }
           // If no areas exist, areas stays [] and user can add via "Kelola Area"
         }
@@ -101,12 +82,17 @@ export default function MyRestoProfile() {
   };
 
   // Atomic update: PATCH a single area's seatoOccupied or walkInOccupied
-  const patchAreaOccupancy = async (rId, areaId, field, delta) => {
+  const patchAreaOccupancy = async (rId, areaId, field, delta, assignments = undefined) => {
     try {
+      const payload = { areaId, field, delta };
+      if (assignments !== undefined) {
+        payload.assignments = assignments;
+      }
+      
       const res = await fetch(`/api/restaurants/${rId}/areas`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ areaId, field, delta })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success && Array.isArray(data.areas)) {
@@ -138,13 +124,6 @@ export default function MyRestoProfile() {
   // 10-second timer for testing (in real app, this would be 5 minutes = 300000ms)
   const TIMER_DURATION_MS = 10000; 
 
-  // Sync to localStorage
-  useEffect(() => {
-    if (restaurantId && tableAssignments.length > 0) {
-      localStorage.setItem(`seato_tables_${restaurantId}`, JSON.stringify(tableAssignments));
-    }
-  }, [tableAssignments, restaurantId]);
-
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
@@ -162,18 +141,20 @@ export default function MyRestoProfile() {
   const confirmAssign = (type) => {
     if (pendingAssignTable) {
       const { areaId, tableIndex } = pendingAssignTable;
-      updateArea(areaId, type, 1);
-      setTableAssignments(prev => [
-        ...prev, 
-        { 
-          id: Math.random().toString(36).substr(2, 9),
-          areaId, 
-          tableIndex,
-          type,
-          assignedAt: Date.now(),
-          notified: false
-        }
-      ]);
+      const newAssignment = { 
+        id: Math.random().toString(36).substr(2, 9),
+        areaId, 
+        tableIndex,
+        type,
+        assignedAt: Date.now(),
+        notified: false
+      };
+      
+      setTableAssignments(prev => {
+        const next = [...prev, newAssignment];
+        updateArea(areaId, type, 1, next.filter(t => t.areaId === areaId));
+        return next;
+      });
       setPendingAssignTable(null);
     }
   };
@@ -182,28 +163,31 @@ export default function MyRestoProfile() {
     const assignment = tableAssignments.find(t => t.id === assignmentId);
     if (!assignment) return;
 
-    if (assignment.areaId !== targetAreaId) {
-      // Moving across areas: update backend for both
-      updateArea(assignment.areaId, assignment.type, -1);
-      updateArea(targetAreaId, assignment.type, 1);
-    }
-    
-    // Update local assignment state
-    setTableAssignments(prev => prev.map(t => 
-      t.id === assignmentId ? { ...t, areaId: targetAreaId, tableIndex: targetTableIndex } : t
-    ));
+    setTableAssignments(prev => {
+      const next = prev.map(t => 
+        t.id === assignmentId ? { ...t, areaId: targetAreaId, tableIndex: targetTableIndex } : t
+      );
+      
+      if (assignment.areaId !== targetAreaId) {
+        // Moving across areas: update backend for both
+        updateArea(assignment.areaId, assignment.type, -1, next.filter(t => t.areaId === assignment.areaId));
+        updateArea(targetAreaId, assignment.type, 1, next.filter(t => t.areaId === targetAreaId));
+      } else {
+        // Moving within same area: update only DB assignments with 0 delta
+        updateArea(targetAreaId, assignment.type, 0, next.filter(t => t.areaId === targetAreaId));
+      }
+      
+      return next;
+    });
   };
 
 
   const finishTableAssignment = (assignmentId) => {
     const assignment = tableAssignments.find(w => w.id === assignmentId);
     if (assignment) {
-      updateArea(assignment.areaId, assignment.type, -1);
       setTableAssignments(prev => {
         const next = prev.filter(w => w.id !== assignmentId);
-        if (next.length === 0 && restaurantId) {
-          localStorage.removeItem(`seato_tables_${restaurantId}`);
-        }
+        updateArea(assignment.areaId, assignment.type, -1, next.filter(t => t.areaId === assignment.areaId));
         return next;
       });
     }
@@ -246,7 +230,7 @@ export default function MyRestoProfile() {
   }
 
   // --- HANDLERS FOR AREAS ---
-  const updateArea = (areaId, type, delta) => {
+  const updateArea = (areaId, type, delta, assignments = undefined) => {
     // Optimistic update for instant UI feedback
     setAreas(prevAreas => {
       const newAreas = prevAreas.map(a => {
@@ -279,7 +263,7 @@ export default function MyRestoProfile() {
     // Atomic PATCH to server — server response will be the true state
     if (restaurantId) {
       const field = type === 'seato' ? 'seatoOccupied' : 'walkInOccupied';
-      patchAreaOccupancy(restaurantId, areaId, field, delta);
+      patchAreaOccupancy(restaurantId, areaId, field, delta, assignments);
     }
   };
 

@@ -79,6 +79,7 @@ model RestaurantArea {
   seatoAllocated  Int
   seatoOccupied   Int        @default(0)
   walkInOccupied  Int        @default(0)
+  tableAssignments Json?     @default("[]")
   restaurant      Restaurant @relation(fields: [restaurantId], references: [id])
   reservations    Reservation[]
 }
