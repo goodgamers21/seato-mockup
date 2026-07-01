@@ -29,6 +29,9 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('[POST /api/auth/login] Error:', error);
-    return NextResponse.json({ error: 'Failed to authenticate user' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to authenticate user', 
+      details: error.message 
+    }, { status: 500 });
   }
 }
