@@ -50,18 +50,32 @@ export default function MyRestoProfile() {
             setAreas(resto.areas);
             
             // Generate initial table assignments based on DB counters
-            const initialAssignments = [];
-            resto.areas.forEach(area => {
-              // Fill SEATO from left to right in their zone
-              for (let i = 0; i < area.seatoOccupied; i++) {
-                initialAssignments.push({ id: Math.random().toString(36).substr(2, 9), areaId: area.id, tableIndex: i, type: 'seato', assignedAt: Date.now(), notified: false });
+            // FIRST, check localStorage for existing layout
+            const cachedKey = `seato_tables_${partnerId}`;
+            let cachedAssignments = null;
+            try {
+              const cached = localStorage.getItem(cachedKey);
+              if (cached) {
+                cachedAssignments = JSON.parse(cached);
               }
-              // Fill Walk-in starting after SEATO zone
-              for (let i = 0; i < area.walkInOccupied; i++) {
-                initialAssignments.push({ id: Math.random().toString(36).substr(2, 9), areaId: area.id, tableIndex: area.seatoAllocated + i, type: 'walkin', assignedAt: Date.now(), notified: false });
-              }
-            });
-            setTableAssignments(initialAssignments);
+            } catch (e) {}
+
+            if (cachedAssignments && cachedAssignments.length > 0) {
+              setTableAssignments(cachedAssignments);
+            } else {
+              const initialAssignments = [];
+              resto.areas.forEach(area => {
+                // Fill SEATO from left to right in their zone
+                for (let i = 0; i < area.seatoOccupied; i++) {
+                  initialAssignments.push({ id: Math.random().toString(36).substr(2, 9), areaId: area.id, tableIndex: i, type: 'seato', assignedAt: Date.now(), notified: false });
+                }
+                // Fill Walk-in starting after SEATO zone
+                for (let i = 0; i < area.walkInOccupied; i++) {
+                  initialAssignments.push({ id: Math.random().toString(36).substr(2, 9), areaId: area.id, tableIndex: area.seatoAllocated + i, type: 'walkin', assignedAt: Date.now(), notified: false });
+                }
+              });
+              setTableAssignments(initialAssignments);
+            }
           }
           // If no areas exist, areas stays [] and user can add via "Kelola Area"
         }
@@ -124,6 +138,13 @@ export default function MyRestoProfile() {
   // 10-second timer for testing (in real app, this would be 5 minutes = 300000ms)
   const TIMER_DURATION_MS = 10000; 
 
+  // Sync to localStorage
+  useEffect(() => {
+    if (restaurantId && tableAssignments.length > 0) {
+      localStorage.setItem(`seato_tables_${restaurantId}`, JSON.stringify(tableAssignments));
+    }
+  }, [tableAssignments, restaurantId]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
@@ -178,7 +199,13 @@ export default function MyRestoProfile() {
     const assignment = tableAssignments.find(w => w.id === assignmentId);
     if (assignment) {
       updateArea(assignment.areaId, assignment.type, -1);
-      setTableAssignments(prev => prev.filter(w => w.id !== assignmentId));
+      setTableAssignments(prev => {
+        const next = prev.filter(w => w.id !== assignmentId);
+        if (next.length === 0 && restaurantId) {
+          localStorage.removeItem(`seato_tables_${restaurantId}`);
+        }
+        return next;
+      });
     }
     if (tableReminder && tableReminder.id === assignmentId) {
       setTableReminder(null);
