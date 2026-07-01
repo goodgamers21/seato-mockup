@@ -26,7 +26,7 @@ async function main() {
       statsFavorit: 8
     }
   });
-
+ 
   const user2 = await prisma.user.create({
     data: {
       name: 'Sarah Rahman',
