@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma as prismaClient } from '../../../lib/prisma';
+import { prisma as prismaClient } from '../../../../lib/prisma';
 
 // Level thresholds based on plan
 const LEVEL_THRESHOLDS = [
