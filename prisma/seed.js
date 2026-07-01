@@ -40,14 +40,55 @@ async function main() {
     }
   });
 
+  const user3 = await prisma.user.create({
+    data: {
+      name: 'Giffard',
+      email: 'giffard@example.com',
+      password: 'password123',
+      initials: 'GF',
+      location: 'Bandung',
+      statsReservasi: 5,
+      statsUlasan: 2,
+      statsFavorit: 3
+    }
+  });
+
+  const user4 = await prisma.user.create({
+    data: {
+      name: 'Dandy',
+      email: 'dandy@example.com',
+      password: 'password123',
+      initials: 'DN',
+      location: 'Jakarta',
+      statsReservasi: 8,
+      statsUlasan: 4,
+      statsFavorit: 6
+    }
+  });
+
+  const user5 = await prisma.user.create({
+    data: {
+      name: 'Arif',
+      email: 'arif@example.com',
+      password: 'password123',
+      initials: 'AR',
+      location: 'Jakarta',
+      statsReservasi: 15,
+      statsUlasan: 10,
+      statsFavorit: 12
+    }
+  });
+
   console.log('Seeding restaurants...');
 
-  // 2. Create Soto Kudus Menara
+  // 2. Create Soto Kudus Menara (Bandung)
   const sotoMenara = await prisma.restaurant.create({
     data: {
       name: 'Soto Kudus Menara',
       address: 'Jl. Merdeka No. 12',
       city: 'Bandung',
+      latitude: -6.9147,
+      longitude: 107.6098,
       type: 'Indonesian',
       rating: 4.8,
       reviewsCount: 120,
@@ -66,12 +107,14 @@ async function main() {
     }
   });
 
-  // 3. Create Union Coffee Dago
+  // 3. Create Union Coffee Dago (Bandung)
   await prisma.restaurant.create({
     data: {
       name: 'Union Coffee Dago',
       address: 'Jl. Ir. H. Juanda No. 123',
       city: 'Bandung',
+      latitude: -6.8920,
+      longitude: 107.6150,
       type: 'Specialty Coffee',
       rating: 4.9,
       reviewsCount: 312,
@@ -90,12 +133,14 @@ async function main() {
     }
   });
 
-  // 4. Create Kopi Senja
+  // 4. Create Kopi Senja (Bandung)
   await prisma.restaurant.create({
     data: {
       name: 'Kopi Senja',
       address: 'Jl. Riau No. 45',
       city: 'Bandung',
+      latitude: -6.9083,
+      longitude: 107.6253,
       type: 'Coffee Shop',
       rating: 4.6,
       reviewsCount: 342,
@@ -114,12 +159,14 @@ async function main() {
     }
   });
 
-  // 5. Create Warung 24 Jam
+  // 5. Create Warung 24 Jam (Priok)
   await prisma.restaurant.create({
     data: {
       name: 'Warung 24 Jam Priok',
       address: 'Jl. Enggano Raya',
       city: 'Jakarta Utara',
+      latitude: -6.1154,
+      longitude: 106.8837,
       type: 'Warung',
       rating: 4.5,
       reviewsCount: 300,
@@ -137,12 +184,14 @@ async function main() {
     }
   });
 
-  // 6. Create Midnight Vibes Cafe
+  // 6. Create Midnight Vibes Cafe (Sunter)
   await prisma.restaurant.create({
     data: {
       name: 'Midnight Vibes Cafe',
       address: 'Jl. Danau Sunter',
       city: 'Jakarta Utara',
+      latitude: -6.1300,
+      longitude: 106.8900,
       type: 'Cafe',
       rating: 4.8,
       reviewsCount: 210,
