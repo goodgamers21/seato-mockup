@@ -138,9 +138,9 @@ export default function MyRestoProfile() {
     return () => clearInterval(interval);
   }, [tableAssignments, areas]);
 
-  const confirmAssign = () => {
+  const confirmAssign = (type) => {
     if (pendingAssignTable) {
-      const { areaId, tableIndex, type } = pendingAssignTable;
+      const { areaId, tableIndex } = pendingAssignTable;
       updateArea(areaId, type, 1);
       setTableAssignments(prev => [
         ...prev, 
@@ -156,6 +156,23 @@ export default function MyRestoProfile() {
       setPendingAssignTable(null);
     }
   };
+
+  const moveTableAssignment = (assignmentId, targetAreaId, targetTableIndex) => {
+    const assignment = tableAssignments.find(t => t.id === assignmentId);
+    if (!assignment) return;
+
+    if (assignment.areaId !== targetAreaId) {
+      // Moving across areas: update backend for both
+      updateArea(assignment.areaId, assignment.type, -1);
+      updateArea(targetAreaId, assignment.type, 1);
+    }
+    
+    // Update local assignment state
+    setTableAssignments(prev => prev.map(t => 
+      t.id === assignmentId ? { ...t, areaId: targetAreaId, tableIndex: targetTableIndex } : t
+    ));
+  };
+
 
   const finishTableAssignment = (assignmentId) => {
     const assignment = tableAssignments.find(w => w.id === assignmentId);
@@ -448,21 +465,8 @@ export default function MyRestoProfile() {
             <h2 style={{ fontSize: '13px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
               Zonasi Area Meja
             </h2>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <div 
-                draggable 
-                onDragStart={(e) => { e.dataTransfer.setData('type', 'walkin') }}
-                style={{ background: '#FEF3C7', color: '#B45309', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, border: '1px solid #FDE68A', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                <IconArmchair size={16} /> Drag Tamu Walk-in
-              </div>
-              <div 
-                draggable 
-                onDragStart={(e) => { e.dataTransfer.setData('type', 'seato') }}
-                style={{ background: '#DBEAFE', color: '#1D4ED8', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, border: '1px solid #93C5FD', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                <IconArmchair size={16} /> Drag Tamu SEATO
-              </div>
+            <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
+              💡 Klik meja kosong untuk tambah tamu, atau <b>Drag & Drop</b> meja terisi untuk pindah meja.
             </div>
           </div>
 
@@ -499,6 +503,12 @@ export default function MyRestoProfile() {
                       return (
                         <div 
                           key={i}
+                          draggable={!isEmpty}
+                          onDragStart={(e) => {
+                            if (!isEmpty) {
+                              e.dataTransfer.setData('assignmentId', assignment.id);
+                            }
+                          }}
                           onDragOver={(e) => {
                             if (isEmpty) {
                               e.preventDefault(); // allow drop
@@ -507,10 +517,15 @@ export default function MyRestoProfile() {
                           onDrop={(e) => {
                             e.preventDefault();
                             if (isEmpty) {
-                              const type = e.dataTransfer.getData('type');
-                              if (type === 'seato' || type === 'walkin') {
-                                setPendingAssignTable({ areaId: area.id, tableIndex: i, areaName: area.name, type });
+                              const assignmentId = e.dataTransfer.getData('assignmentId');
+                              if (assignmentId) {
+                                moveTableAssignment(assignmentId, area.id, i);
                               }
+                            }
+                          }}
+                          onClick={() => {
+                            if (isEmpty) {
+                              setPendingAssignTable({ areaId: area.id, tableIndex: i, areaName: area.name });
                             }
                           }}
                           style={{ 
@@ -521,6 +536,7 @@ export default function MyRestoProfile() {
                           borderStyle: isEmpty && isSeatoZone ? 'dashed' : 'solid',
                           color: isSeato ? '#1D4ED8' : isWalkIn ? '#B45309' : '#94A3B8',
                           transition: 'all 0.2s ease',
+                          cursor: !isEmpty ? 'grab' : 'pointer',
                           boxShadow: !isEmpty ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
                         }}>
                           {/* Close X Button if Assigned */}
@@ -597,18 +613,23 @@ export default function MyRestoProfile() {
       {/* Pending Assign Confirm Modal */}
       {pendingAssignTable && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'white', padding: '24px', borderRadius: '16px', width: '90%', maxWidth: '360px', textAlign: 'center' }}>
-            <div style={{ width: '48px', height: '48px', background: pendingAssignTable.type === 'seato' ? '#DBEAFE' : '#FEF3C7', color: pendingAssignTable.type === 'seato' ? '#1D4ED8' : '#D97706', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <div style={{ background: 'white', padding: '24px', borderRadius: '16px', width: '90%', maxWidth: '380px', textAlign: 'center' }}>
+            <div style={{ width: '48px', height: '48px', background: '#F1F5F9', color: '#64748B', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <IconUsers size={24} />
             </div>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#0F172A' }}>Assign {pendingAssignTable.type === 'seato' ? 'SEATO' : 'Walk-in'}</h3>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#0F172A' }}>Assign Meja Baru</h3>
             <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#64748B', lineHeight: '1.5' }}>
-              Masukkan tamu {pendingAssignTable.type === 'seato' ? 'SEATO' : 'Walk-in'} ke <strong>Meja {pendingAssignTable.tableIndex + 1}</strong> di <strong>{pendingAssignTable.areaName}</strong>?
+              Tipe tamu apa yang ingin Anda tempatkan di <strong>Meja {pendingAssignTable.tableIndex + 1}</strong> ({pendingAssignTable.areaName})?
             </p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setPendingAssignTable(null)} style={{ flex: 1, padding: '12px', background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '12px', fontWeight: 600, cursor: 'pointer' }}>Batal</button>
-              <button onClick={confirmAssign} style={{ flex: 1, padding: '12px', background: pendingAssignTable.type === 'seato' ? '#3B82F6' : '#F59E0B', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 600, cursor: 'pointer' }}>Ya, Assign</button>
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+              <button onClick={() => confirmAssign('walkin')} style={{ flex: 1, padding: '12px', background: '#FEF3C7', color: '#B45309', border: '1px solid #FDE68A', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <IconArmchair size={16} /> Tamu Walk-in
+              </button>
+              <button onClick={() => confirmAssign('seato')} style={{ flex: 1, padding: '12px', background: '#DBEAFE', color: '#1D4ED8', border: '1px solid #93C5FD', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <IconArmchair size={16} /> Tamu SEATO
+              </button>
             </div>
+            <button onClick={() => setPendingAssignTable(null)} style={{ width: '100%', padding: '12px', background: 'transparent', color: '#94A3B8', border: 'none', fontWeight: 600, cursor: 'pointer' }}>Batal</button>
           </div>
         </div>
       )}
