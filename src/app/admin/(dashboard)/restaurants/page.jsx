@@ -48,6 +48,20 @@ export default function MyRestoProfile() {
           // Always use areas from DB — no hardcoded fallback
           if (resto.areas && resto.areas.length > 0) {
             setAreas(resto.areas);
+            
+            // Generate initial table assignments based on DB counters
+            const initialAssignments = [];
+            resto.areas.forEach(area => {
+              // Fill SEATO from left to right in their zone
+              for (let i = 0; i < area.seatoOccupied; i++) {
+                initialAssignments.push({ id: Math.random().toString(36).substr(2, 9), areaId: area.id, tableIndex: i, type: 'seato', assignedAt: Date.now(), notified: false });
+              }
+              // Fill Walk-in starting after SEATO zone
+              for (let i = 0; i < area.walkInOccupied; i++) {
+                initialAssignments.push({ id: Math.random().toString(36).substr(2, 9), areaId: area.id, tableIndex: area.seatoAllocated + i, type: 'walkin', assignedAt: Date.now(), notified: false });
+              }
+            });
+            setTableAssignments(initialAssignments);
           }
           // If no areas exist, areas stays [] and user can add via "Kelola Area"
         }
