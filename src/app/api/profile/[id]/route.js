@@ -3,7 +3,7 @@ import { prisma as prismaClient } from '../../../../lib/prisma';
 
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     const user = await prismaClient.user.findUnique({
       where: { id },
@@ -39,7 +39,7 @@ export async function GET(request, { params }) {
 
 export async function PATCH(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const data = await request.json();
 
     const updatedUser = await prismaClient.user.update({

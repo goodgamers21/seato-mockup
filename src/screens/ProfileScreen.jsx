@@ -29,11 +29,12 @@ export default function ProfileScreen({ currentUser, onNavigate }) {
   }, [currentUser]);
 
   if (loading || !profile) return <div className="screen-content" style={{ padding: '20px' }}>Loading Profile...</div>;
+  if (profile.error) return <div className="screen-content" style={{ padding: '20px', color: 'red' }}>Error: {profile.error}</div>;
 
-  const earnedBadgeIds = profile.badges.map(b => b.badgeId);
+  const earnedBadgeIds = (profile.badges || []).map(b => b.badgeId);
   const displayBadges = allBadges.map(badge => ({
     ...badge,
-    earnedAt: profile.badges.find(b => b.badgeId === badge.id)?.earnedAt,
+    earnedAt: (profile.badges || []).find(b => b.badgeId === badge.id)?.earnedAt,
     isLocked: !earnedBadgeIds.includes(badge.id)
   }));
 
@@ -109,7 +110,7 @@ export default function ProfileScreen({ currentUser, onNavigate }) {
           <h2 style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', margin: '0 0 16px 0' }}>Recent Activity</h2>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {profile.xpLogs.length > 0 ? profile.xpLogs.map(log => (
+            {(profile.xpLogs || []).length > 0 ? (profile.xpLogs || []).map(log => (
               <div key={log.id} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 <div style={{ width: '36px', height: '36px', borderRadius: '18px', background: '#F0FDFA', color: '#0EA5A0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <i className={log.action === 'REVIEW' ? 'ti ti-star' : 'ti ti-map-pin'}></i>
