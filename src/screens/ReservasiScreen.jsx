@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import InvoiceModal from '../components/ui/InvoiceModal';
 import CancelModal from '../components/ui/CancelModal';
 import ReviewModal from '../components/ui/ReviewModal';
+import toast from 'react-hot-toast';
 
 export default function ReservasiScreen({ navigateToExplore, currentUser }) {
   const [resTab, setResTab] = useState('upcoming');
@@ -76,16 +77,22 @@ export default function ReservasiScreen({ navigateToExplore, currentUser }) {
       const data = await res.json();
       
       if (!res.ok) {
-        alert('Gagal mengirim ulasan: ' + (data.error || 'Unknown error'));
+        toast.error('Gagal mengirim ulasan: ' + (data.error || 'Unknown error'));
         return;
       }
 
       setIsReviewOpen(false);
       setSelectedResForReview(null);
-      alert('Terima kasih atas ulasan Anda!');
+      toast.success(
+        <div>
+          Terima kasih atas ulasan Anda! <br/>
+          <span style={{ color: '#F59E0B', fontWeight: 'bold' }}>+10 XP points</span>
+        </div>,
+        { duration: 4000 }
+      );
     } catch(e) {
       console.error(e);
-      alert('Gagal mengirim ulasan (Network Error)');
+      toast.error('Gagal mengirim ulasan (Network Error)');
     }
   };
 

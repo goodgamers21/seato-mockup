@@ -1,7 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 
-export default function RestaurantDetailScreen({ restaurant, onBack, onBooking }) {
+export default function RestaurantDetailScreen({ restaurant, currentUser, onBack, onBooking }) {
   const [showContactForm, setShowContactForm] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isLoadingFavorite, setIsLoadingFavorite] = useState(false);
+
+  useEffect(() => {
+    if (currentUser && restaurant) {
+      fetch(`/api/favorites?userId=${currentUser.id}&restaurantId=${restaurant.id}`)
+        .then(res => res.json())
+        .then(data => setIsFavorite(data.isFavorite))
+        .catch(console.error);
+    }
+  }, [currentUser, restaurant]);
+
+  const toggleFavorite = async () => {
+    if (!currentUser) {
+      toast.error('Silakan login terlebih dahulu');
+      return;
+    }
+    setIsLoadingFavorite(true);
+    try {
+      if (isFavorite) {
+        await fetch(`/api/favorites?userId=${currentUser.id}&restaurantId=${restaurant.id}`, { method: 'DELETE' });
+        setIsFavorite(false);
+        toast.success('Dihapus dari favorit');
+      } else {
+        await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id, restaurantId: restaurant.id })
+        });
+        setIsFavorite(true);
+        toast.success('Ditambahkan ke favorit');
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('Gagal memperbarui favorit');
+    } finally {
+      setIsLoadingFavorite(false);
+    }
+  };
 
   if (!restaurant) return null;
 
@@ -78,8 +118,11 @@ export default function RestaurantDetailScreen({ restaurant, onBack, onBooking }
             <i className="ti ti-arrow-left" style={{ fontSize: '20px' }}></i>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <div style={{ width: '40px', height: '40px', background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer' }}>
-              <i className="ti ti-heart" style={{ fontSize: '20px' }}></i>
+            <div 
+              onClick={isLoadingFavorite ? null : toggleFavorite}
+              style={{ width: '40px', height: '40px', background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isFavorite ? '#E11D48' : 'white', cursor: 'pointer' }}
+            >
+              <i className={isFavorite ? "ti ti-heart-filled" : "ti ti-heart"} style={{ fontSize: '20px' }}></i>
             </div>
             <div style={{ width: '40px', height: '40px', background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer' }}>
               <i className="ti ti-share" style={{ fontSize: '20px' }}></i>
@@ -176,6 +219,80 @@ export default function RestaurantDetailScreen({ restaurant, onBack, onBooking }
             </div>
           </div>
           <i className="ti ti-chevron-right" style={{ color: '#94A3B8', fontSize: '16px' }}></i>
+        </div>
+
+        {/* Cafe Score Section */}
+        <div style={{ marginBottom: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', fontWeight: 700, color: '#1E293B' }}>
+              <i className="ti ti-award" style={{ color: '#0EA5A0', fontSize: '20px' }}></i> Cafe Score
+            </div>
+          </div>
+          <div style={{ border: '1px solid #E2E8F0', borderRadius: '16px', padding: '20px', background: 'white' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <div style={{ fontSize: '32px', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{restaurant.rating}</div>
+                <div style={{ display: 'flex', color: '#F59E0B', gap: '2px', marginTop: '4px' }}>
+                  {[1, 2, 3, 4, 5].map(i => <i key={i} className={`ti ti-star${i <= Math.round(restaurant.rating) ? '-filled' : ''}`}></i>)}
+                </div>
+                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>{restaurant.reviewsCount} Ulasan</div>
+              </div>
+              <div style={{ width: '80px', height: '80px', borderRadius: '40px', background: '#F0FDFA', border: '4px solid #0EA5A0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: '#0EA5A0' }}>70%</span>
+                <span style={{ fontSize: '9px', textAlign: 'center', color: '#0F766E', fontWeight: 600, padding: '0 4px', lineHeight: 1.1 }}>Reviews dari Certified Hoppers</span>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px' }}>
+                <span style={{ width: '70px', color: '#475569' }}>Taste</span>
+                <div style={{ flex: 1, height: '6px', background: '#F1F5F9', borderRadius: '3px', margin: '0 12px' }}>
+                  <div style={{ width: '90%', height: '100%', background: '#F59E0B', borderRadius: '3px' }}></div>
+                </div>
+                <span style={{ width: '24px', fontWeight: 600 }}>4.7</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px' }}>
+                <span style={{ width: '70px', color: '#475569' }}>Ambiance</span>
+                <div style={{ flex: 1, height: '6px', background: '#F1F5F9', borderRadius: '3px', margin: '0 12px' }}>
+                  <div style={{ width: '85%', height: '100%', background: '#F59E0B', borderRadius: '3px' }}></div>
+                </div>
+                <span style={{ width: '24px', fontWeight: 600 }}>4.5</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px' }}>
+                <span style={{ width: '70px', color: '#475569' }}>Service</span>
+                <div style={{ flex: 1, height: '6px', background: '#F1F5F9', borderRadius: '3px', margin: '0 12px' }}>
+                  <div style={{ width: '80%', height: '100%', background: '#F59E0B', borderRadius: '3px' }}></div>
+                </div>
+                <span style={{ width: '24px', fontWeight: 600 }}>4.4</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Top Hoppers Section */}
+        <div style={{ marginBottom: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', fontWeight: 700, color: '#1E293B' }}>
+              <i className="ti ti-medal" style={{ color: '#0EA5A0', fontSize: '20px' }}></i> Recommended by Top Hoppers
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px', margin: '0 -20px', padding: '0 20px' }}>
+            <div style={{ width: '120px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px', textAlign: 'center', flexShrink: 0 }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '24px', background: '#1B3461', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, margin: '0 auto 8px' }}>AR</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Arif</div>
+              <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>Level 18</div>
+            </div>
+            <div style={{ width: '120px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px', textAlign: 'center', flexShrink: 0 }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '24px', background: '#1B3461', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, margin: '0 auto 8px' }}>DN</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Dandy</div>
+              <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>Level 12</div>
+            </div>
+            <div style={{ width: '120px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px', textAlign: 'center', flexShrink: 0 }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '24px', background: '#1B3461', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, margin: '0 auto 8px' }}>BA</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Bagus Aji</div>
+              <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>Level 10</div>
+            </div>
+          </div>
         </div>
 
         {/* Description */}

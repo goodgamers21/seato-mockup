@@ -22,6 +22,17 @@ export async function GET(request, { params }) {
           orderBy: { createdAt: 'desc' },
           take: 3,
           include: { restaurant: true }
+        },
+        reservations: {
+          orderBy: { date: 'desc' },
+          take: 5
+        },
+        _count: {
+          select: {
+            reviews: true,
+            favorites: true,
+            reservations: true
+          }
         }
       }
     });

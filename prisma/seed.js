@@ -23,6 +23,8 @@ async function main() {
     { name: 'Hidden Gem Hunter', description: 'Kunjungi 10+ cafe belum populer', category: 'ACHIEVEMENT', requirement: '{"reviewsCount": "<50", "visits": 10}', iconUrl: 'https://cdn-icons-png.flaticon.com/512/272/272396.png' },
     { name: 'WFC Specialist', description: 'Sering ke cafe WFC Friendly', category: 'SPECIALIST', requirement: '{"tag": "WFC Friendly", "visits": 20}', iconUrl: 'https://cdn-icons-png.flaticon.com/512/2784/2784461.png' },
     { name: 'Night Owl', description: 'Sering ke cafe di atas jam 9 malam', category: 'SPECIALIST', requirement: '{"time": ">21:00", "visits": 15}', iconUrl: 'https://cdn-icons-png.flaticon.com/512/1253/1253365.png' },
+    { name: 'Brunch Lover', description: 'Kunjungi 40 Brunch Places', category: 'SPECIALIST', requirement: '{"tag": "Brunch", "visits": 40}', iconUrl: 'https://cdn-icons-png.flaticon.com/512/3075/3075977.png' },
+    { name: 'Dessert Connoisseur', description: 'Kunjungi 60 Dessert Places', category: 'SPECIALIST', requirement: '{"tag": "Dessert", "visits": 60}', iconUrl: 'https://cdn-icons-png.flaticon.com/512/3082/3082008.png' },
   ];
   
   const createdBadges = [];
@@ -124,10 +126,12 @@ async function main() {
     data: [
       { userId: user1.id, badgeId: createdBadges[0].id }, // Early Bird
       { userId: user1.id, badgeId: createdBadges[3].id }, // WFC Specialist
+      { userId: user1.id, badgeId: createdBadges[5].id }, // Brunch Lover
       { userId: user5.id, badgeId: createdBadges[0].id },
       { userId: user5.id, badgeId: createdBadges[1].id }, // Coffee Expert
       { userId: user5.id, badgeId: createdBadges[2].id },
       { userId: user4.id, badgeId: createdBadges[4].id }, // Night Owl
+      { userId: user2.id, badgeId: createdBadges[6].id }, // Dessert Connoisseur
     ]
   });
 
@@ -249,6 +253,40 @@ async function main() {
        await prisma.userFavorite.create({
           data: { userId: user1.id, restaurantId: createdResto.id }
        });
+       
+       // Seed Review
+       await prisma.review.create({
+         data: {
+           userId: user1.id, restaurantId: createdResto.id, rating: 5, comment: 'Tempat WFC paling pewe di Dago. Kopi enak, wifi kenceng, colokan banyak.'
+         }
+       });
+       
+       // Seed Reservation
+       await prisma.reservation.create({
+         data: {
+           userId: user1.id, restaurantId: createdResto.id,
+           date: '2023-10-15', time: '14:00', guests: 2, tableType: 'Indoor Area',
+           status: 'Selesai'
+         }
+       });
+       await prisma.reservation.create({
+         data: {
+           userId: user1.id, restaurantId: createdResto.id,
+           date: '2023-11-20', time: '10:00', guests: 1, tableType: 'Indoor Area',
+           status: 'Selesai'
+         }
+       });
+    }
+
+    if (resto.name === 'Braga Art Cafe') {
+       await prisma.userFavorite.create({
+          data: { userId: user1.id, restaurantId: createdResto.id }
+       });
+       await prisma.review.create({
+         data: {
+           userId: user1.id, restaurantId: createdResto.id, rating: 4, comment: 'Aesthetic banget tempatnya.'
+         }
+       });
     }
   }
 
@@ -286,8 +324,22 @@ async function main() {
        { userId: user5.id, action: 'REVIEW', xpAmount: 10 },
        { userId: user5.id, action: 'ADD_PHOTO', xpAmount: 5 },
        { userId: user1.id, action: 'FIRST_VISIT', xpAmount: 15 },
-       { userId: user1.id, action: 'CHECK_IN', xpAmount: 5 }
+       { userId: user1.id, action: 'CHECK_IN', xpAmount: 5 },
+       { userId: user1.id, action: 'REVIEW', xpAmount: 10 },
+       { userId: user1.id, action: 'HELPFUL_REVIEW', xpAmount: 10 }
      ]
+  });
+
+  // Seed streams
+  await prisma.stream.create({
+    data: {
+      authorName: user4.name,
+      authorAvatar: user4.initials,
+      type: 'USER_POST',
+      content: 'Lagi mampir ke Union Dago nih, wifi nya emang ga boong kenceng banget buat nugas akhir pekan!',
+      likes: 12,
+      restaurantId: sotoMenara ? sotoMenara.id : null // using whatever ID is available just to test
+    }
   });
 
   console.log('Seeding completed successfully!');

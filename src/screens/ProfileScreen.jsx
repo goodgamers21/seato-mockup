@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import BadgeCard from '../components/ui/BadgeCard';
 import LevelProgressBar from '../components/ui/LevelProgressBar';
+import FavoritesSubScreen from './profile/FavoritesSubScreen';
+import MyReviewsSubScreen from './profile/MyReviewsSubScreen';
+import AllBadgesSubScreen from './profile/AllBadgesSubScreen';
+import EditProfileSubScreen from './profile/EditProfileSubScreen';
+import XPGuideSubScreen from './profile/XPGuideSubScreen';
 
-export default function ProfileScreen({ currentUser, onNavigate }) {
+export default function ProfileScreen({ currentUser, onNavigate, onSelectRestaurant }) {
   const [profile, setProfile] = useState(null);
   const [allBadges, setAllBadges] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [subScreen, setSubScreen] = useState('main');
 
-  useEffect(() => {
+  const fetchProfileData = () => {
     if (currentUser) {
-      // Fetch full profile with badges and XP logs
       fetch(`/api/profile/${currentUser.id}`)
         .then(res => res.json())
         .then(data => {
           setProfile(data);
-          return fetch('/api/badges'); // Fetch all available badges
+          return fetch('/api/badges');
         })
         .then(res => res.json())
         .then(data => {
@@ -26,10 +31,31 @@ export default function ProfileScreen({ currentUser, onNavigate }) {
           setLoading(false);
         });
     }
+  };
+
+  useEffect(() => {
+    fetchProfileData();
   }, [currentUser]);
 
   if (loading || !profile) return <div className="screen-content" style={{ padding: '20px' }}>Loading Profile...</div>;
   if (profile.error) return <div className="screen-content" style={{ padding: '20px', color: 'red' }}>Error: {profile.error}</div>;
+
+  if (subScreen === 'favorites') {
+    return <FavoritesSubScreen favorites={profile.favorites} onBack={() => setSubScreen('main')} onSelectRestaurant={onSelectRestaurant} />;
+  }
+  if (subScreen === 'myReviews') {
+    return <MyReviewsSubScreen reviews={profile.reviews} onBack={() => setSubScreen('main')} onSelectRestaurant={onSelectRestaurant} />;
+  }
+  if (subScreen === 'allBadges') {
+    const earnedBadgeIds = (profile.badges || []).map(b => b.badgeId);
+    return <AllBadgesSubScreen badges={allBadges} earnedBadgeIds={earnedBadgeIds} onBack={() => setSubScreen('main')} />;
+  }
+  if (subScreen === 'editProfile') {
+    return <EditProfileSubScreen profile={profile} onBack={() => setSubScreen('main')} onSave={fetchProfileData} />;
+  }
+  if (subScreen === 'xpGuide') {
+    return <XPGuideSubScreen onBack={() => setSubScreen('main')} />;
+  }
 
   const earnedBadgeIds = (profile.badges || []).map(b => b.badgeId);
   const displayBadges = allBadges.map(badge => ({
@@ -38,7 +64,6 @@ export default function ProfileScreen({ currentUser, onNavigate }) {
     isLocked: !earnedBadgeIds.includes(badge.id)
   }));
 
-  const levelBadges = displayBadges.filter(b => b.category === 'LEVEL');
   const specialistBadges = displayBadges.filter(b => b.category === 'SPECIALIST' || b.category === 'ACHIEVEMENT');
 
   return (
@@ -66,9 +91,16 @@ export default function ProfileScreen({ currentUser, onNavigate }) {
             <p style={{ fontSize: '13px', opacity: 0.9, margin: 0 }}>Level {profile.level} {profile.specialization ? `• ${profile.specialization}` : ''}</p>
           </div>
         </div>
+
+        <div 
+          onClick={() => setSubScreen('editProfile')} 
+          style={{ position: 'absolute', bottom: '-16px', right: '20px', background: 'white', color: '#1B3461', padding: '6px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 700, boxShadow: '0 4px 6px rgba(0,0,0,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+        >
+          <i className="ti ti-pencil"></i> Edit
+        </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', marginTop: '16px' }}>
         
         {/* STATS SUMMARY */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
@@ -89,17 +121,23 @@ export default function ProfileScreen({ currentUser, onNavigate }) {
         {/* PROGRESS BAR */}
         <div style={{ marginBottom: '24px' }}>
           <LevelProgressBar xp={profile.xpPoints} level={profile.level} />
+          <div 
+            onClick={() => setSubScreen('xpGuide')}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '12px', color: '#0EA5A0', fontWeight: 700, marginTop: '12px', cursor: 'pointer' }}
+          >
+            <i className="ti ti-info-circle"></i> Cara Mendapatkan XP
+          </div>
         </div>
 
         {/* BADGES */}
         <div style={{ marginBottom: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h2 style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', margin: 0 }}>My Badges</h2>
-            <span style={{ fontSize: '12px', color: '#3B82F6', fontWeight: 600, cursor: 'pointer' }}>See All</span>
+            <span onClick={() => setSubScreen('allBadges')} style={{ fontSize: '12px', color: '#3B82F6', fontWeight: 600, cursor: 'pointer' }}>See All</span>
           </div>
           
           <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }} className="hide-scrollbar">
-            {specialistBadges.map(badge => (
+            {specialistBadges.slice(0, 5).map(badge => (
               <BadgeCard key={badge.id} badge={badge} isLocked={badge.isLocked} />
             ))}
           </div>
@@ -118,7 +156,7 @@ export default function ProfileScreen({ currentUser, onNavigate }) {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '13px', color: '#334155' }}>
                     <span style={{ fontWeight: 600, color: '#0F172A' }}>{profile.name}</span> {' '}
-                    {log.action === 'REVIEW' ? 'menulis ulasan' : 'baru saja check-in'}
+                    {log.action === 'REVIEW' ? 'menulis ulasan' : log.action === 'FIRST_VISIT' ? 'kunjungan pertama' : log.action === 'ADD_PHOTO' ? 'upload foto' : 'baru saja check-in'}
                   </div>
                   <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>
                     {new Date(log.createdAt).toLocaleDateString('id-ID')}
@@ -138,9 +176,15 @@ export default function ProfileScreen({ currentUser, onNavigate }) {
         <div style={{ marginTop: '32px' }}>
           <h2 className="text-muted" style={{ marginBottom: '12px', fontSize: '13px' }}>Aktivitas Saya</h2>
           <div className="menu-list" style={{ background: 'white', borderRadius: '16px' }}>
-            <div className="menu-item"><i className="ti ti-calendar"></i> <span className="text-navy" style={{ fontWeight: 600, flex: 1 }}>Riwayat Reservasi</span> <i className="ti ti-chevron-right text-muted"></i></div>
-            <div className="menu-item"><i className="ti ti-heart"></i> <span className="text-navy" style={{ fontWeight: 600, flex: 1 }}>Restoran Favorit</span> <i className="ti ti-chevron-right text-muted"></i></div>
-            <div className="menu-item"><i className="ti ti-star"></i> <span className="text-navy" style={{ fontWeight: 600, flex: 1 }}>Ulasan Saya</span> <i className="ti ti-chevron-right text-muted"></i></div>
+            <div className="menu-item" onClick={() => onNavigate('reservasiHistory')} style={{ cursor: 'pointer' }}>
+              <i className="ti ti-calendar"></i> <span className="text-navy" style={{ fontWeight: 600, flex: 1 }}>Riwayat Reservasi</span> <i className="ti ti-chevron-right text-muted"></i>
+            </div>
+            <div className="menu-item" onClick={() => setSubScreen('favorites')} style={{ cursor: 'pointer' }}>
+              <i className="ti ti-heart"></i> <span className="text-navy" style={{ fontWeight: 600, flex: 1 }}>Restoran Favorit</span> <i className="ti ti-chevron-right text-muted"></i>
+            </div>
+            <div className="menu-item" onClick={() => setSubScreen('myReviews')} style={{ cursor: 'pointer' }}>
+              <i className="ti ti-star"></i> <span className="text-navy" style={{ fontWeight: 600, flex: 1 }}>Ulasan Saya</span> <i className="ti ti-chevron-right text-muted"></i>
+            </div>
           </div>
         </div>
 

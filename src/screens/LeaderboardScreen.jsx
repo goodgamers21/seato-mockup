@@ -47,15 +47,21 @@ export default function LeaderboardScreen({ onBack, currentUser }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {leaders.map((user, index) => (
-              <div key={user.id} style={{ 
-                display: 'flex', alignItems: 'center', padding: '16px', 
-                background: user.id === currentUser?.id ? '#F0FDFA' : 'white', 
-                borderRadius: '16px', border: user.id === currentUser?.id ? '1px solid #99F6E4' : '1px solid #F1F5F9',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-              }}>
+              <div 
+                key={user.id} 
+                onClick={() => onViewProfile && onViewProfile(user.id)}
+                style={{ 
+                  display: 'flex', alignItems: 'center', padding: '16px', 
+                  background: user.id === currentUser?.id ? '#F0FDFA' : 'white', 
+                  borderRadius: '16px', border: user.id === currentUser?.id ? '1px solid #99F6E4' : '1px solid #F1F5F9',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
+                  cursor: 'pointer'
+                }}
+              >
                 <div style={{ 
                   width: '24px', fontSize: '14px', fontWeight: 800, 
-                  color: index === 0 ? '#F59E0B' : index === 1 ? '#94A3B8' : index === 2 ? '#B45309' : '#64748B'
+                  color: index === 0 ? '#F59E0B' : index === 1 ? '#94A3B8' : index === 2 ? '#B45309' : '#64748B',
+                  textAlign: 'center'
                 }}>
                   {index + 1}
                 </div>
@@ -66,8 +72,11 @@ export default function LeaderboardScreen({ onBack, currentUser }) {
                   <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {user.name}
                     {user.id === currentUser?.id && <span style={{ fontSize: '10px', background: '#0EA5A0', color: 'white', padding: '2px 6px', borderRadius: '10px' }}>You</span>}
+                    {index < Math.ceil(leaders.length * 0.05) && <i className="ti ti-flame" style={{ color: '#EF4444', fontSize: '14px' }} title="Top 5%"></i>}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>Level {user.level} • {user.cafesVisited} Cafes</div>
+                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    Level {user.level} {user.specialization && <span style={{ background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{user.specialization}</span>}
+                  </div>
                 </div>
                 <div style={{ fontSize: '14px', fontWeight: 800, color: '#1B3461' }}>
                   {user.xpPoints.toLocaleString()} <span style={{ fontSize: '10px', fontWeight: 600, color: '#94A3B8' }}>XP</span>

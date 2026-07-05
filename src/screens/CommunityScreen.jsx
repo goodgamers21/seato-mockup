@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import ComposeStreamModal from '../components/ui/ComposeStreamModal';
 
-export default function CommunityScreen({ currentUser }) {
-  const [tab, setTab] = useState('reviews');
+export default function CommunityScreen({ currentUser, onViewProfile }) {
+  const [tab, setTab] = useState('streams');
   const [reviews, setReviews] = useState([]);
   const [streams, setStreams] = useState([]);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -54,8 +54,10 @@ export default function CommunityScreen({ currentUser }) {
       </div>
       
       <div className="tabs-underline" style={{ background: 'white', position: 'sticky', top: '108px', zIndex: 10 }}>
-        <div className={`tab-u ${tab === 'streams' ? 'active' : ''}`} onClick={() => setTab('streams')}>Streams</div>
-        <div className={`tab-u ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}>Teman Seato</div>
+        <div className={`tab-u ${tab === 'streams' ? 'active' : ''}`} onClick={() => setTab('streams')}>For You</div>
+        <div className={`tab-u ${tab === 'following' ? 'active' : ''}`} onClick={() => setTab('following')}>Following</div>
+        <div className={`tab-u ${tab === 'nearby' ? 'active' : ''}`} onClick={() => setTab('nearby')}>Nearby</div>
+        <div className={`tab-u ${tab === 'trending' ? 'active' : ''}`} onClick={() => setTab('trending')}>Trending</div>
       </div>
 
       <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
@@ -100,11 +102,19 @@ export default function CommunityScreen({ currentUser }) {
               <div key={stream.id} className="card" style={{ padding: '0', borderRadius: '16px', overflow: 'hidden' }}>
                 <div style={{ padding: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '18px', background: stream.type === 'RESTO_PROMO' ? '#0EA5A0' : (stream.type === 'USER_POST' ? '#3B82F6' : '#F59E0B'), color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600 }}>
+                    <div 
+                      onClick={() => { if (stream.authorId && onViewProfile) onViewProfile(stream.authorId); }}
+                      style={{ width: '36px', height: '36px', borderRadius: '18px', background: stream.type === 'RESTO_PROMO' ? '#0EA5A0' : (stream.type === 'USER_POST' ? '#3B82F6' : '#F59E0B'), color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600, cursor: stream.authorId ? 'pointer' : 'default' }}>
                       {stream.authorAvatar || stream.authorName.charAt(0)}
                     </div>
                     <div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>{stream.authorName}</div>
+                      <div 
+                        onClick={() => { if (stream.authorId && onViewProfile) onViewProfile(stream.authorId); }}
+                        style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', cursor: stream.authorId ? 'pointer' : 'default', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        {stream.authorName}
+                        {stream.authorLevel && <span style={{ background: '#F1F5F9', color: '#475569', fontSize: '10px', padding: '2px 6px', borderRadius: '8px', fontWeight: 800 }}>Lv {stream.authorLevel}</span>}
+                      </div>
                       <div style={{ fontSize: '11px', color: '#64748B' }}>
                         {stream.type === 'RESTO_PROMO' ? 'Pengumuman Restoran' : stream.type === 'USER_POST' ? 'Postingan Pengguna' : 'Ulasan Pengguna'} • {new Date(stream.createdAt).toLocaleDateString('id-ID')}
                       </div>
@@ -167,6 +177,46 @@ export default function CommunityScreen({ currentUser }) {
             {streams.length === 0 && (
               <p style={{ textAlign: 'center', color: '#94A3B8', padding: '40px 0' }}>Belum ada aktivitas di Streams.</p>
             )}
+          </div>
+        )}
+
+        {tab === 'trending' && (
+          <div className="flex-col gap-4">
+            <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>Trending Minggu Ini 🔥</h2>
+            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '16px' }}>Restoran yang paling banyak dibicarakan di komunitas.</p>
+            
+            <div className="card" style={{ padding: '16px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#F59E0B', width: '24px', textAlign: 'center' }}>1</div>
+              <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: '#E2E8F0', overflow: 'hidden', flexShrink: 0 }}>
+                <img src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=150&q=80" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cafe" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px 0', color: '#0F172A' }}>Kopi Kenangan Senopati</h3>
+                <div style={{ fontSize: '12px', color: '#64748B' }}>142 mentions minggu ini</div>
+              </div>
+            </div>
+            
+            <div className="card" style={{ padding: '16px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ fontSize: '20px', fontWeight: 800, color: '#94A3B8', width: '24px', textAlign: 'center' }}>2</div>
+              <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: '#E2E8F0', overflow: 'hidden', flexShrink: 0 }}>
+                <img src="https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&w=150&q=80" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cafe" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px 0', color: '#0F172A' }}>Anomali Coffee Menteng</h3>
+                <div style={{ fontSize: '12px', color: '#64748B' }}>89 mentions minggu ini</div>
+              </div>
+            </div>
+            
+            <div className="card" style={{ padding: '16px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: '#B45309', width: '24px', textAlign: 'center' }}>3</div>
+              <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: '#E2E8F0', overflow: 'hidden', flexShrink: 0 }}>
+                <img src="https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=150&q=80" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Cafe" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px 0', color: '#0F172A' }}>% Arabica Roastery</h3>
+                <div style={{ fontSize: '12px', color: '#64748B' }}>64 mentions minggu ini</div>
+              </div>
+            </div>
           </div>
         )}
       </div>

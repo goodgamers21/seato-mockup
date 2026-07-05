@@ -22,6 +22,7 @@ import PromoScreen from '../screens/PromoScreen';
 import CommunityScreen from '../screens/CommunityScreen';
 import CategoryDetailScreen from '../screens/CategoryDetailScreen';
 import NearbyScreen from '../screens/NearbyScreen';
+import PublicProfileScreen from '../screens/PublicProfileScreen';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -35,6 +36,7 @@ export default function App() {
   const [viewingNearby, setViewingNearby] = useState(false);
   const [viewingLeaderboard, setViewingLeaderboard] = useState(false);
   const [viewingSettings, setViewingSettings] = useState(false);
+  const [viewingProfile, setViewingProfile] = useState(null);
   const [preSelectedPromoId, setPreSelectedPromoId] = useState('');
   
   const [newBookingInvoice, setNewBookingInvoice] = useState(null);
@@ -99,7 +101,7 @@ export default function App() {
 
   const renderActiveScreen = () => {
     if (viewingLeaderboard) {
-       return <LeaderboardScreen currentUser={currentUser} onBack={() => setViewingLeaderboard(false)} />;
+       return <LeaderboardScreen currentUser={currentUser} onBack={() => setViewingLeaderboard(false)} onViewProfile={setViewingProfile} />;
     }
 
     if (viewingSettings) {
@@ -110,6 +112,7 @@ export default function App() {
       return (
         <RestaurantDetailScreen 
           restaurant={viewingRestaurant} 
+          currentUser={currentUser}
           onBack={() => setViewingRestaurant(null)} 
           onBooking={openBooking}
         />
@@ -148,6 +151,15 @@ export default function App() {
         />
       );
     }
+    if (viewingProfile) {
+      return (
+        <PublicProfileScreen
+          userId={viewingProfile}
+          currentUser={currentUser}
+          onBack={() => setViewingProfile(null)}
+        />
+      );
+    }
 
     switch (activeTab) {
       case 'home':
@@ -161,7 +173,7 @@ export default function App() {
       case 'promo':
         return <PromoScreen />;
       case 'community':
-        return <CommunityScreen currentUser={currentUser} />;
+        return <CommunityScreen currentUser={currentUser} onViewProfile={setViewingProfile} />;
       case 'reservasi':
         return <ReservasiScreen currentUser={currentUser} navigateToExplore={() => setActiveTab('home')} />;
       case 'akun':
@@ -170,7 +182,9 @@ export default function App() {
                   onNavigate={(dest) => {
                      if (dest === 'leaderboard') setViewingLeaderboard(true);
                      if (dest === 'settings') setViewingSettings(true);
+                     if (dest === 'reservasiHistory') setActiveTab('reservasi');
                   }}
+                  onSelectRestaurant={setViewingRestaurant}
                />;
       default:
         return <HomeScreen currentUser={currentUser} />;
