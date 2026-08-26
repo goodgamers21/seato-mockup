@@ -9,32 +9,33 @@ datasource db {
 }
 
 model User {
-  id             String        @id @default(uuid())
+  id             String               @id @default(uuid())
   name           String
-  email          String        @unique
+  email          String               @unique
   password       String?
   initials       String?
   location       String?
   latitude       Float?
   longitude      Float?
-  statsReservasi Int           @default(0)
-  statsUlasan    Int           @default(0)
-  statsFavorit   Int           @default(0)
-  cancelCount    Int           @default(0)
+  statsReservasi Int                  @default(0)
+  statsUlasan    Int                  @default(0)
+  statsFavorit   Int                  @default(0)
+  cancelCount    Int                  @default(0)
   bannedUntil    DateTime?
-  level          Int           @default(1)
-  xpPoints       Int           @default(0)
-  cafesVisited   Int           @default(0)
+  level          Int                  @default(1)
+  xpPoints       Int                  @default(0)
+  cafesVisited   Int                  @default(0)
   bio            String?
   avatarUrl      String?
-  specialization String?       // e.g., "Coffee Expert"
+  specialization String? // e.g., "Coffee Expert"
   reservations   Reservation[]
   reviews        Review[]
   badges         UserBadge[]
   xpLogs         XPLog[]
   favorites      UserFavorite[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  visitorLogs    MerchantVisitorLog[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 }
 
 model Badge {
@@ -42,29 +43,29 @@ model Badge {
   name        String      @unique
   description String
   iconUrl     String?
-  category    String      // "LEVEL" | "SPECIALIST" | "ACHIEVEMENT"
-  requirement String      // JSON string describing how to earn
+  category    String // "LEVEL" | "SPECIALIST" | "ACHIEVEMENT"
+  requirement String // JSON string describing how to earn
   userBadges  UserBadge[]
   createdAt   DateTime    @default(now())
 }
 
 model UserBadge {
-  id        String   @id @default(uuid())
-  userId    String
-  badgeId   String
-  earnedAt  DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  badge     Badge    @relation(fields: [badgeId], references: [id])
-  
+  id       String   @id @default(uuid())
+  userId   String
+  badgeId  String
+  earnedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id])
+  badge    Badge    @relation(fields: [badgeId], references: [id])
+
   @@unique([userId, badgeId])
 }
 
 model XPLog {
   id        String   @id @default(uuid())
   userId    String
-  action    String   // "CHECK_IN" | "REVIEW" | "ADD_PHOTO" | "HELPFUL_REVIEW" | "FIRST_VISIT" | "REPEAT_VISIT"
+  action    String // "CHECK_IN" | "REVIEW" | "ADD_PHOTO" | "HELPFUL_REVIEW" | "FIRST_VISIT" | "REPEAT_VISIT"
   xpAmount  Int
-  sourceId  String?  // Reference to reservation/review id
+  sourceId  String? // Reference to reservation/review id
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
 }
@@ -76,121 +77,188 @@ model UserFavorite {
   user         User       @relation(fields: [userId], references: [id])
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
   createdAt    DateTime   @default(now())
-  
+
   @@unique([userId, restaurantId])
 }
 
 model Promo {
-  id           String      @id @default(uuid())
+  id           String        @id @default(uuid())
   title        String
   subtitle     String
   imageUrl     String
   color        String
-  type         String      // "GLOBAL" | "COLLAB"
+  type         String // "GLOBAL" | "COLLAB"
   code         String?
   restaurantId String?
-  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
+  restaurant   Restaurant?   @relation(fields: [restaurantId], references: [id])
   reservations Reservation[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Restaurant {
+  id                 String                      @id @default(uuid())
+  name               String
+  address            String
+  city               String
+  distance           String?
+  latitude           Float?
+  longitude          Float?
+  type               String
+  rating             Float                       @default(0.0)
+  reviewsCount       Int                         @default(0)
+  status             String
+  imageUrl           String?
+  tags               String // Store as JSON string or comma-separated
+  isTrending         Boolean                     @default(false)
+  isRecommended      Boolean                     @default(false)
+  mentionsCount      Int                         @default(0)
+  loginEmail         String?                     @unique
+  loginPassword      String?
+  reservations       Reservation[]
+  reviews            Review[]
+  streams            Stream[]
+  promos             Promo[]
+  areas              RestaurantArea[]
+  userFavorites      UserFavorite[]
+  visitorLogs        MerchantVisitorLog[]
+  aiInsights         MerchantAiInsight[]
+  notificationConfig MerchantNotificationConfig?
+  scrapedData        ScrapedMarketData[]
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+}
+
+model RestaurantArea {
+  id               String        @id @default(uuid())
+  restaurantId     String
+  name             String
+  total            Int
+  seatoAllocated   Int
+  seatoOccupied    Int           @default(0)
+  walkInOccupied   Int           @default(0)
+  tableAssignments Json?         @default("[]")
+  restaurant       Restaurant    @relation(fields: [restaurantId], references: [id])
+  reservations     Reservation[]
+}
+
+model Reservation {
+  id            String          @id @default(uuid())
+  userId        String
+  restaurantId  String
+  status        String // Confirmed, Menunggu Konfirmasi, Selesai, Dibatalkan, Ditolak Restoran
+  date          String
+  time          String
+  guests        Int
+  tableType     String // Nama area (e.g., "Indoor Area")
+  areaId        String? // ID area restoran yang dipilih
+  area          RestaurantArea? @relation(fields: [areaId], references: [id])
+  assignedTable String?
+  invoiceId     String?         @unique
+  totalAmount   Int?
+  paymentStatus String?         @default("Unpaid")
+  cancelReason  String?
+  cancelledBy   String? // "user" | "admin" | "system"
+  promoId       String?
+  promo         Promo?          @relation(fields: [promoId], references: [id])
+  user          User            @relation(fields: [userId], references: [id])
+  restaurant    Restaurant      @relation(fields: [restaurantId], references: [id])
+  review        Review?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Review {
+  id            String       @id @default(uuid())
+  userId        String
+  restaurantId  String
+  reservationId String?      @unique // One review per reservation
+  rating        Int // 1 to 5
+  comment       String?
+  user          User         @relation(fields: [userId], references: [id])
+  restaurant    Restaurant   @relation(fields: [restaurantId], references: [id])
+  reservation   Reservation? @relation(fields: [reservationId], references: [id])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Stream {
+  id           String      @id @default(uuid())
+  authorName   String
+  authorAvatar String?
+  type         String // "USER_REVIEW" | "RESTO_PROMO" | "USER_POST"
+  content      String
+  rating       Int? // Only if it's a review
+  imageUrl     String? // Optional image for promo/review
+  likes        Int         @default(0)
+  restaurantId String? // Tagged restaurant
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
+  parentId     String?
+  parent       Stream?     @relation("StreamReplies", fields: [parentId], references: [id])
+  replies      Stream[]    @relation("StreamReplies")
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }
 
-model Restaurant {
-  id            String        @id @default(uuid())
-  name          String
-  address       String
-  city          String
-  distance      String?
-  latitude      Float?
-  longitude     Float?
-  type          String
-  rating        Float         @default(0.0)
-  reviewsCount  Int           @default(0)
-  status        String
-  imageUrl      String?
-  tags          String        // Store as JSON string or comma-separated
-  isTrending    Boolean       @default(false)
-  isRecommended Boolean       @default(false)
-  mentionsCount Int           @default(0)
-  loginEmail    String?       @unique
-  loginPassword String?
-  reservations  Reservation[]
-  reviews       Review[]
-  streams       Stream[]
-  promos        Promo[]
-  areas         RestaurantArea[]
-  userFavorites UserFavorite[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+// --- TABEL TAMBAHAN UNTUK AI, TELEMETRI PENGUNJUNG, SCRAPING & NOTIFIKASI ---
+
+model MerchantVisitorLog {
+  id           String     @id @default(uuid())
+  restaurantId String
+  userId       String?
+  action       String // "VIEW_PAGE", "CLICK_MENU", "CLICK_RESERVE", "SEARCH_KEYWORD"
+  keyword      String?
+  source       String? // "SEARCH", "NEARBY", "TRENDING", "DIRECT"
+  device       String? // "iOS", "Android", "Web"
+  createdAt    DateTime   @default(now())
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId, createdAt])
 }
 
-model RestaurantArea {
-  id              String     @id @default(uuid())
-  restaurantId    String
-  name            String
-  total           Int
-  seatoAllocated  Int
-  seatoOccupied   Int        @default(0)
-  walkInOccupied  Int        @default(0)
-  tableAssignments Json?     @default("[]")
-  restaurant      Restaurant @relation(fields: [restaurantId], references: [id])
-  reservations    Reservation[]
-}
-
-model Reservation {
+model MerchantAiInsight {
   id             String     @id @default(uuid())
-  userId         String
   restaurantId   String
-  status         String     // Confirmed, Menunggu Konfirmasi, Selesai, Dibatalkan, Ditolak Restoran
-  date           String
-  time           String
-  guests         Int
-  tableType      String     // Nama area (e.g., "Indoor Area")
-  areaId         String?    // ID area restoran yang dipilih
-  area           RestaurantArea? @relation(fields: [areaId], references: [id])
-  assignedTable  String?
-  invoiceId      String?    @unique
-  totalAmount    Int?
-  paymentStatus  String?    @default("Unpaid")
-  cancelReason   String?
-  cancelledBy    String?    // "user" | "admin" | "system"
-  promoId        String?
-  promo          Promo?     @relation(fields: [promoId], references: [id])
-  user           User       @relation(fields: [userId], references: [id])
-  restaurant     Restaurant @relation(fields: [restaurantId], references: [id])
-  review         Review?
+  period         String // "DAILY", "WEEKLY", "MANUAL"
+  summaryText    String     @db.Text
+  sentimentScore Float? // 0.0 - 5.0
+  peakHoursJson  Json? // {"busiestDay": "Sabtu", "peakTime": "18:00 - 21:00"}
+  topKeywords    Json? // ["WFC Friendly", "Outdoor", "Live Music"]
+  actionItems    Json? // ["Bikin promo diskon Selasa sore", "Perbanyak colokan"]
+  churnRiskCount Int        @default(0)
+  rawMetrics     Json? // Snapshot total views, bookings, GMV saat analisis dibuat
+  createdAt      DateTime   @default(now())
+
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, createdAt])
+}
+
+model ScrapedMarketData {
+  id           String      @id @default(uuid())
+  restaurantId String? // Terhubung ke resto (jika scraping kompetitor sekitar)
+  targetName   String // Nama resto kompetitor / kata kunci target
+  platform     String // "GOOGLE_MAPS", "INSTAGRAM", "TIKTOK", "FOOD_DELIVERY"
+  scrapedData  Json // Raw json dari scraper
+  rating       Float?
+  reviewCount  Int?
+  createdAt    DateTime    @default(now())
+
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+}
+
+model MerchantNotificationConfig {
+  id             String     @id @default(uuid())
+  restaurantId   String     @unique
+  emailRecipient String? // Email owner/manager resto
+  waRecipient    String? // Nomor WA tujuan (+628xxx)
+  enableEmail    Boolean    @default(true)
+  enableWA       Boolean    @default(false)
+  frequency      String     @default("WEEKLY") // "DAILY", "WEEKLY"
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
-}
 
-model Review {
-  id             String      @id @default(uuid())
-  userId         String
-  restaurantId   String
-  reservationId  String?     @unique // One review per reservation
-  rating         Int         // 1 to 5
-  comment        String?
-  user           User        @relation(fields: [userId], references: [id])
-  restaurant     Restaurant  @relation(fields: [restaurantId], references: [id])
-  reservation    Reservation? @relation(fields: [reservationId], references: [id])
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-}
-
-model Stream {
-  id             String      @id @default(uuid())
-  authorName     String
-  authorAvatar   String?
-  type           String      // "USER_REVIEW" | "RESTO_PROMO" | "USER_POST"
-  content        String
-  rating         Int?        // Only if it's a review
-  imageUrl       String?     // Optional image for promo/review
-  likes          Int         @default(0)
-  restaurantId   String?     // Tagged restaurant
-  restaurant     Restaurant? @relation(fields: [restaurantId], references: [id])
-  parentId       String?
-  parent         Stream?     @relation("StreamReplies", fields: [parentId], references: [id])
-  replies        Stream[]    @relation("StreamReplies")
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 }
