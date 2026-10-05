@@ -106,4 +106,88 @@ export class CronJobs {
     console.log(`✅ [CronJobs] Weekly digest completed for ${results.length} restaurants.`);
     return results;
   }
+
+  /**
+   * Job 4: Auto-expire pending community event requests (> 48h OR <= H-2)
+   */
+  static async autoExpireCommunityRequests() {
+    console.log('⏰ [CronJobs] Checking pending community events to auto-expire...');
+    const now = new Date();
+    const pendingEvents = await prisma.communityEvent.findMany({
+      where: { status: 'PENDING' }
+    });
+
+    const expiredIds = [];
+
+    for (const evt of pendingEvents) {
+      try {
+        const createdTime = new Date(evt.createdAt).getTime();
+        const diffHours = (now.getTime() - createdTime) / (1000 * 60 * 60);
+
+        // Check if event date is <= H-2
+        const eventDateObj = new Date(`${evt.date}T00:00:00+07:00`);
+        const daysUntilEvent = (eventDateObj.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+
+        if (diffHours >= 48 || daysUntilEvent <= 2) {
+          await prisma.communityEvent.update({
+            where: { id: evt.id },
+            data: { status: 'EXPIRED' }
+          });
+          expiredIds.push(evt.id);
+        }
+      } catch (err) {
+        console.error(`Error auto-expiring event ${evt.id}:`, err);
+      }
+    }
+
+    console.log(`✅ [CronJobs] Auto-expire done. Expired ${expiredIds.length} events.`);
+    return { expiredCount: expiredIds.length, expiredIds };
+  }
+
+  /**
+   * Job 5: Update event lifecycle (APPROVED -> LIVE -> COMPLETED)
+   */
+  static async updateEventLifecycle() {
+    console.log('⏰ [CronJobs] Updating community events lifecycle...');
+    const now = new Date();
+    const activeEvents = await prisma.communityEvent.findMany({
+      where: {
+        status: { in: ['APPROVED', 'LIVE'] }
+      }
+    });
+
+    const results = { transitionedToLive: 0, transitionedToCompleted: 0 };
+
+    for (const evt of activeEvents) {
+      try {
+        // time format: "06:00 - 08:30" or "06:00"
+        const parts = evt.time.split('-').map(s => s.trim());
+        const startTimeStr = parts[0] || '00:00';
+        const endTimeStr = parts[1] || '23:59';
+
+        const startDateTime = new Date(`${evt.date}T${startTimeStr}:00+07:00`);
+        const endDateTime = new Date(`${evt.date}T${endTimeStr}:00+07:00`);
+
+        if (evt.status === 'APPROVED' && now >= startDateTime && now < endDateTime) {
+          await prisma.communityEvent.update({
+            where: { id: evt.id },
+            data: { status: 'LIVE' }
+          });
+          results.transitionedToLive++;
+        } else if ((evt.status === 'LIVE' || evt.status === 'APPROVED') && now >= endDateTime) {
+          await prisma.communityEvent.update({
+            where: { id: evt.id },
+            data: { status: 'COMPLETED' }
+          });
+          results.transitionedToCompleted++;
+        }
+      } catch (err) {
+        console.error(`Error updating event lifecycle for ${evt.id}:`, err);
+      }
+    }
+
+    console.log(`✅ [CronJobs] Event lifecycle updated:`, results);
+    return results;
+  }
 }
+

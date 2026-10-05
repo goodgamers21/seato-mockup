@@ -34,6 +34,10 @@ model User {
   xpLogs         XPLog[]
   favorites      UserFavorite[]
   visitorLogs    MerchantVisitorLog[]
+  communities    Community[]          @relation("CommunityPic")
+  memberships    CommunityMember[]
+  submittedEvents CommunityEvent[]    @relation("EventSubmitter")
+  rsvps          CommunityEventRsvp[]
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 }
@@ -125,6 +129,7 @@ model Restaurant {
   aiInsights         MerchantAiInsight[]
   notificationConfig MerchantNotificationConfig?
   scrapedData        ScrapedMarketData[]
+  communityEvents    CommunityEvent[]
   createdAt          DateTime                    @default(now())
   updatedAt          DateTime                    @updatedAt
 }
@@ -261,4 +266,76 @@ model MerchantNotificationConfig {
   updatedAt      DateTime   @updatedAt
 
   restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+}
+
+// --- MODEL KOMUNITAS & EVENT (COMMUNITY × MERCHANT MATCH) ---
+
+model Community {
+  id                 String            @id @default(uuid())
+  name               String
+  category           String            // RUNNING, CYCLING, PADEL, HIKING, ESPORT, BOARDGAME, OTHER
+  description        String?           @db.Text
+  logoUrl            String?
+  picUserId          String
+  verificationStatus String            @default("PENDING_REVIEW") // PENDING_REVIEW, VERIFIED, REJECTED, SUSPENDED
+  verificationNote   String?
+  pic                User              @relation("CommunityPic", fields: [picUserId], references: [id])
+  members            CommunityMember[]
+  events             CommunityEvent[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([category, verificationStatus])
+}
+
+model CommunityMember {
+  id          String    @id @default(uuid())
+  communityId String
+  userId      String
+  role        String    @default("MEMBER") // PIC, MEMBER
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt    DateTime  @default(now())
+
+  @@unique([communityId, userId])
+}
+
+model CommunityEvent {
+  id               String               @id @default(uuid())
+  communityId      String
+  restaurantId     String
+  submittedById    String               // PIC yang mengajukan
+  title            String
+  activityType     String
+  eventType        String               @default("SANTAI") // SANTAI | TERSTRUKTUR
+  date             String               // "YYYY-MM-DD"
+  time             String               // "HH:mm - HH:mm"
+  targetCapacity   Int                  @default(25)
+  currentRsvp      Int                  @default(0)
+  requestChips     Json?                // ["DISCOUNT_GROUP","REFRESHMENT","RESERVE_AREA","BANNER","DOCS","OTHER"]
+  customNote       String?              @db.Text
+  merchantReply    String?              @db.VarChar(140)
+  status           String               @default("PENDING") // PENDING, APPROVED, REJECTED, EXPIRED, LIVE, COMPLETED, CANCELLED
+  isFlaggedByAdmin Boolean              @default(false)
+  community        Community            @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  restaurant       Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  submittedBy      User                 @relation("EventSubmitter", fields: [submittedById], references: [id])
+  rsvps            CommunityEventRsvp[]
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([restaurantId, status])
+  @@index([date, status])
+}
+
+model CommunityEventRsvp {
+  id        String         @id @default(uuid())
+  eventId   String
+  userId    String
+  status    String         @default("JOINED") // JOINED, CANCELLED
+  event     CommunityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@unique([eventId, userId])
 }

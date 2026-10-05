@@ -3,6 +3,10 @@ const prisma = new PrismaClient();
 
 async function main() {
   // 1. Delete all existing data (respecting foreign keys)
+  await prisma.communityEventRsvp.deleteMany();
+  await prisma.communityEvent.deleteMany();
+  await prisma.communityMember.deleteMany();
+  await prisma.community.deleteMany();
   await prisma.userFavorite.deleteMany();
   await prisma.xPLog.deleteMany();
   await prisma.userBadge.deleteMany();
@@ -341,6 +345,122 @@ async function main() {
       restaurantId: sotoMenara ? sotoMenara.id : null // using whatever ID is available just to test
     }
   });
+
+  console.log('Seeding Communities and Events...');
+
+  // 1. Community VERIFIED: Jakarta Morning Runners (PIC: Bagus Aji)
+  const jmr = await prisma.community.create({
+    data: {
+      name: 'Jakarta Morning Runners',
+      category: 'RUNNING',
+      description: 'Komunitas lari santai sabtu pagi keliling Sudirman - Senayan, lanjut ngopi bareng.',
+      logoUrl: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=400&q=80',
+      picUserId: user1.id,
+      verificationStatus: 'VERIFIED',
+      verificationNote: 'Komunitas aktif terverifikasi oleh Seato Ops.',
+      members: {
+        create: [
+          { userId: user1.id, role: 'PIC' },
+          { userId: user4.id, role: 'MEMBER' },
+          { userId: user5.id, role: 'MEMBER' }
+        ]
+      }
+    }
+  });
+
+  // 2. Community VERIFIED: Senayan Cycling Club (PIC: Dandy)
+  const scc = await prisma.community.create({
+    data: {
+      name: 'Senayan Cycling Club',
+      category: 'CYCLING',
+      description: 'Gowes bareng loop Senayan - GBK tiap weekend pagi. Friendly pace & breakfast coffee.',
+      logoUrl: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?auto=format&fit=crop&w=400&q=80',
+      picUserId: user4.id,
+      verificationStatus: 'VERIFIED',
+      verificationNote: 'Komunitas terverifikasi.',
+      members: {
+        create: [
+          { userId: user4.id, role: 'PIC' },
+          { userId: user1.id, role: 'MEMBER' },
+          { userId: user3.id, role: 'MEMBER' }
+        ]
+      }
+    }
+  });
+
+  // 3. Community PENDING_REVIEW: Bandung Padel Society (PIC: Sarah)
+  await prisma.community.create({
+    data: {
+      name: 'Bandung Padel Society',
+      category: 'PADEL',
+      description: 'Main padel santai & match mingguan di area Dago & Riau.',
+      logoUrl: 'https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?auto=format&fit=crop&w=400&q=80',
+      picUserId: user2.id,
+      verificationStatus: 'PENDING_REVIEW',
+      members: {
+        create: [
+          { userId: user2.id, role: 'PIC' }
+        ]
+      }
+    }
+  });
+
+  // Find a target restaurant for events (Kemang Coffee Space or Union Coffee Dago)
+  const eventResto = await prisma.restaurant.findFirst({
+    where: { name: 'Kemang Coffee Space' }
+  }) || sotoMenara;
+
+  if (eventResto) {
+    // Event APPROVED: Upcoming Run & Coffee (JMR)
+    const eventApproved = await prisma.communityEvent.create({
+      data: {
+        communityId: jmr.id,
+        restaurantId: eventResto.id,
+        submittedById: user1.id,
+        title: 'Saturday Morning 5K & Cold Brew Chill',
+        activityType: 'RUNNING',
+        eventType: 'SANTAI',
+        date: '2026-10-18',
+        time: '06:00 - 08:30',
+        targetCapacity: 25,
+        currentRsvp: 2,
+        requestChips: ['DISCOUNT_GROUP', 'REFRESHMENT', 'RESERVE_AREA'],
+        customNote: 'Area parkir sepeda/sepatu aman, butuh meja panjang untuk 20+ orang.',
+        merchantReply: 'Siap kami sediakan area outdoor depan dan free refill es teh!',
+        status: 'APPROVED',
+        rsvps: {
+          create: [
+            { userId: user1.id, status: 'JOINED' },
+            { userId: user4.id, status: 'JOINED' }
+          ]
+        }
+      }
+    });
+
+    // Event PENDING: SCC Gowes Santai
+    await prisma.communityEvent.create({
+      data: {
+        communityId: scc.id,
+        restaurantId: eventResto.id,
+        submittedById: user4.id,
+        title: 'Sunday Loop 30K Recovery Ride',
+        activityType: 'CYCLING',
+        eventType: 'SANTAI',
+        date: '2026-10-25',
+        time: '06:30 - 09:00',
+        targetCapacity: 30,
+        currentRsvp: 1,
+        requestChips: ['DISCOUNT_GROUP', 'RESERVE_AREA'],
+        customNote: 'Area parkir sepeda mohon dipantau staf.',
+        status: 'PENDING',
+        rsvps: {
+          create: [
+            { userId: user4.id, status: 'JOINED' }
+          ]
+        }
+      }
+    });
+  }
 
   console.log('Seeding completed successfully!');
 }

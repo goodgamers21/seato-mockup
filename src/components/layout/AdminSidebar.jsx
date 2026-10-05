@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { IconChartBar, IconCalendarEvent, IconArmchair, IconDiscount2, IconSettings, IconLogout } from '@tabler/icons-react';
+import { IconChartBar, IconCalendarEvent, IconArmchair, IconDiscount2, IconSettings, IconLogout, IconUsers } from '@tabler/icons-react';
 
 export default function AdminSidebar() {
   const pathname = usePathname();
@@ -10,6 +10,7 @@ export default function AdminSidebar() {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard BI', path: '/admin', icon: IconChartBar },
     { id: 'reservasi', label: 'Reservations', path: '/admin/reservations', icon: IconCalendarEvent },
+    { id: 'community', label: 'Komunitas & Event', path: '/admin/community', icon: IconUsers },
     { id: 'resto', label: 'Zonasi Meja', path: '/admin/restaurants', icon: IconArmchair },
     { id: 'promo', label: 'Promos', path: '/admin/promos', icon: IconDiscount2 }
   ];
